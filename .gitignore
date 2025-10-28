@@ -1,36 +1,119 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
+# ===============================
+# 🔹 General
+# ===============================
 .DS_Store
-*.pem
+*.log
+*.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.db
+*.pid
 
-# debug
+# ===============================
+# 🔹 Node / Next.js
+# ===============================
+node_modules/
+.next/
+out/
+dist/
+.cache/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
+.pnpm-store/
+.vscode/
+.vercel/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# local env files
-.env*.local
-.env
+# ===============================
+# 🔹 Python / FastAPI
+# ===============================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
-# vercel
-.vercel
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# PyInstaller
+*.spec
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Pytest / Coverage
+.coverage
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+coverage.xml
+
+# Type checker
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/
+
+# ===============================
+# 🔹 Docker / Compose
+# ===============================
+# Ignore Docker build files that might contain secrets
+*.bak
+*.tmp
+*.swp
+docker-compose.override.yml
+**/Dockerfile.dev
+
+# Volumes and generated data
+pg_data/
+db_data/
+*.sql
+*.dump
+*.tar
+
+# ===============================
+# 🔹 IDE / Editor
+# ===============================
+.idea/
+.vscode/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+
+# ===============================
+# 🔹 System / OS
+# ===============================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
