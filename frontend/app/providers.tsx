@@ -1,6 +1,6 @@
 'use client';
 
-import { MantineProvider, ColorSchemeScript, createTheme } from '@mantine/core';
+import { MantineProvider, createTheme } from '@mantine/core';
 import '@mantine/core/styles.css'; // Mantine 8: required to load base CSS reset
 import '@fontsource/inter/variable.css'; // load Inter font
 
@@ -13,11 +13,8 @@ const theme = createTheme({
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <>
-      <ColorSchemeScript />
-      <MantineProvider theme={theme} defaultColorScheme="light">
-        {children}
-      </MantineProvider>
-    </>
+    <MantineProvider theme={theme} defaultColorScheme="light">
+      {children}
+    </MantineProvider>
   );
 }
