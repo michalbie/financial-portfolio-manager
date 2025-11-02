@@ -4,9 +4,19 @@ import '@mantine/notifications/styles.css';
 
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Landing from './pages/Landing'
 import NotFound from './pages/NotFound'
+import Login from './pages/Login';
+import AuthCallback from './pages/AuthCallback';
+import type { JSX } from 'react';
+import Dashboard from './pages/Dashboard';
+
+
+function RequireAuth({ children }: { children: JSX.Element }) {
+  const token = localStorage.getItem("access_token");
+  return token ? children : <Navigate to="/login" replace />;
+}
 
 function App() {
 
@@ -15,6 +25,16 @@ function App() {
       <Notifications />
       <BrowserRouter>
         <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route
+            path="/"
+            element={
+              <RequireAuth>
+                <Dashboard />
+              </RequireAuth>
+            }
+          />
           <Route path="/" element={<Landing />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

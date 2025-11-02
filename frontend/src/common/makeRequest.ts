@@ -22,7 +22,7 @@ const makeRequest = async (url: string, method: string, payload?: any, params?: 
 			method,
 			headers: {
 				"Content-Type": contentTypes[contentType],
-				...(!url.includes("login") ? { Authorization: `Token ${localStorage.getItem("token")}` } : {}),
+				...(!url.includes("login") ? { Authorization: `Bearer ${localStorage.getItem("access_token")}` } : {}),
 			},
 		},
 		credentials: "include",
@@ -34,7 +34,7 @@ const makeRequest = async (url: string, method: string, payload?: any, params?: 
 	});
 
 	if (response.status === 401 && !url.includes("login")) {
-		localStorage.removeItem("token");
+		localStorage.removeItem("access_token");
 		window.location.reload();
 	}
 
