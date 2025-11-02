@@ -17,14 +17,19 @@ const makeRequest = async (url: string, method: string, payload?: any, params?: 
 		}
 	}
 
+	const token = localStorage.getItem("access_token");
+	const headers: Record<string, string> = {
+		"Content-Type": contentTypes[contentType],
+	};
+
+	// Add Authorization header if token exists and URL doesn't include "login" or "callback"
+	if (token && !url.includes("login") && !url.includes("callback")) {
+		headers["Authorization"] = `Bearer ${token}`;
+	}
+
 	const response = await fetch(`${getAPIEndpoint()}${url}${urlParams.length > 0 ? `?${urlParams.substring(1)}` : ""}`, {
-		...{
-			method,
-			headers: {
-				"Content-Type": contentTypes[contentType],
-				...(!url.includes("login") ? { Authorization: `Bearer ${localStorage.getItem("access_token")}` } : {}),
-			},
-		},
+		method,
+		headers,
 		credentials: "include",
 		...(!queryParamsMethods.includes(method)
 			? {
@@ -33,9 +38,9 @@ const makeRequest = async (url: string, method: string, payload?: any, params?: 
 			: {}),
 	});
 
-	if (response.status === 401 && !url.includes("login")) {
+	if (response.status === 401 && !url.includes("login") && !url.includes("callback")) {
 		localStorage.removeItem("access_token");
-		window.location.reload();
+		window.location.href = "/login";
 	}
 
 	return response;

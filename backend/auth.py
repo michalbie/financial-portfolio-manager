@@ -1,7 +1,6 @@
 # backend/auth.py
 from sqlalchemy.orm import Session
-from models import User  # your SQLAlchemy model
-from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Request, HTTPException, Depends, Header
 from fastapi.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from authlib.integrations.starlette_client import OAuth, OAuthError
@@ -91,7 +90,6 @@ async def google_callback(request: Request):
     app_token = create_access_token({"sub": user_email, "name": user_name})
 
     # Redirect back to frontend with token in query string
-    # You could also set an HttpOnly cookie instead if you prefer cookie auth.
     redirect_url = f"{FRONTEND_URL}/auth/callback?token={app_token}"
     return RedirectResponse(url=redirect_url)
 
@@ -102,7 +100,7 @@ class MeOut(BaseModel):
 
 
 @router.get("/me", response_model=MeOut)
-def get_me(authorization: str | None = None):
+def get_me(authorization: str = Header(None)):
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1]

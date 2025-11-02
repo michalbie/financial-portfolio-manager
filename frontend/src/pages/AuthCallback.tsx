@@ -19,7 +19,7 @@ export default function AuthCallback() {
         message: "Logged in!",
         color: "green",
       });
-      navigate("/");
+      navigate("/dashboard");
     } else {
       notifications.show({
         title: "Error",

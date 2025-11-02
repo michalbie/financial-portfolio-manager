@@ -19,6 +19,7 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 }
 
 function App() {
+  const token = localStorage.getItem("access_token");
 
   return (
     <MantineProvider>
@@ -28,14 +29,14 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route
-            path="/"
+            path="/dashboard"
             element={
               <RequireAuth>
                 <Dashboard />
               </RequireAuth>
             }
           />
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={token ? <Navigate to="/dashboard" replace /> : <Landing />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
