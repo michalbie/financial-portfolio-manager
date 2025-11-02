@@ -1,14 +1,16 @@
 # backend/auth.py
-from sqlalchemy.orm import Session
 from fastapi import APIRouter, Request, HTTPException, Depends, Header
-from fastapi.responses import RedirectResponse, JSONResponse
-from starlette.middleware.sessions import SessionMiddleware
+from fastapi.responses import RedirectResponse
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from pydantic import BaseModel
+from typing import List
+from sqlalchemy.orm import Session
 import os
 
+from database import get_db
+from models import User, Role
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -57,6 +59,94 @@ def verify_access_token(token: str):
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
+
+# -----------------------
+# Database helpers
+# -----------------------
+
+
+def get_or_create_user(db: Session, email: str, name: str) -> User:
+    """Get user from DB or create if doesn't exist"""
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        # Create new user with default 'user' role
+        user = User(email=email, name=name)
+
+        # Assign default 'user' role
+        default_role = db.query(Role).filter(Role.name == "user").first()
+        if default_role:
+            user.roles.append(default_role)
+
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    return user
+
+
+def get_user_permissions(user: User) -> List[str]:
+    """Get all permissions for a user based on their roles"""
+    permissions = set()
+    for role in user.roles:
+        for permission in role.permissions:
+            permissions.add(permission.name)
+    return list(permissions)
+
+
+def get_user_roles(user: User) -> List[str]:
+    """Get all role names for a user"""
+    return [role.name for role in user.roles]
+
+
+# -----------------------
+# Role-based access control
+# -----------------------
+
+
+def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)):
+    """Get current user from JWT token"""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    token = authorization.split(" ", 1)[1]
+    payload = verify_access_token(token)
+
+    # Get user from database
+    email = payload.get("sub")
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return user
+
+
+def require_permission(permission: str):
+    """Dependency to require a specific permission"""
+    def permission_checker(user: User = Depends(get_current_user)):
+        user_permissions = get_user_permissions(user)
+        if permission not in user_permissions:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Permission denied. Required permission: {permission}"
+            )
+        return user
+    return permission_checker
+
+
+def require_role(role_name: str):
+    """Dependency to require a specific role"""
+    def role_checker(user: User = Depends(get_current_user)):
+        user_roles = get_user_roles(user)
+        if role_name not in user_roles:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access denied. Required role: {role_name}"
+            )
+        return user
+    return role_checker
+
+
 # -----------------------
 # ROUTES
 # -----------------------
@@ -64,14 +154,14 @@ def verify_access_token(token: str):
 
 @router.get("/login/google")
 async def login_google(request: Request):
-    # Redirect user to Google's consent screen
+    """Redirect user to Google's consent screen"""
     redirect_uri = request.url_for("google_callback")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
 @router.get("/callback/google", name="google_callback")
-async def google_callback(request: Request):
-    # Handle callback from Google
+async def google_callback(request: Request, db: Session = Depends(get_db)):
+    """Handle callback from Google"""
     try:
         token = await oauth.google.authorize_access_token(request)
         userinfo = token.get("userinfo")
@@ -82,14 +172,25 @@ async def google_callback(request: Request):
         raise HTTPException(
             status_code=400, detail=f"OAuth error: {e.error}") from e
 
-    # Minimal "user record" derived from Google profile
+    # Get or create user in database
     user_email = userinfo["email"]
     user_name = userinfo.get("name", user_email.split("@")[0])
 
-    # Create your app's JWT
-    app_token = create_access_token({"sub": user_email, "name": user_name})
+    user = get_or_create_user(db, user_email, user_name)
 
-    # Redirect back to frontend with token in query string
+    # Get user's roles and permissions
+    user_roles = get_user_roles(user)
+    user_permissions = get_user_permissions(user)
+
+    # Create JWT token with role information
+    app_token = create_access_token({
+        "sub": user_email,
+        "name": user_name,
+        "roles": user_roles,
+        "permissions": user_permissions
+    })
+
+    # Redirect back to frontend with token
     redirect_url = f"{FRONTEND_URL}/auth/callback?token={app_token}"
     return RedirectResponse(url=redirect_url)
 
@@ -97,12 +198,16 @@ async def google_callback(request: Request):
 class MeOut(BaseModel):
     email: str
     name: str
+    roles: List[str]
+    permissions: List[str]
 
 
 @router.get("/me", response_model=MeOut)
-def get_me(authorization: str = Header(None)):
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="Missing bearer token")
-    token = authorization.split(" ", 1)[1]
-    payload = verify_access_token(token)
-    return MeOut(email=payload.get("sub"), name=payload.get("name"))
+def get_me(user: User = Depends(get_current_user)):
+    """Get current user info"""
+    return MeOut(
+        email=user.email,
+        name=user.name,
+        roles=get_user_roles(user),
+        permissions=get_user_permissions(user)
+    )
