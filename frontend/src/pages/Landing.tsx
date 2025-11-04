@@ -16,8 +16,11 @@ import {
   IconShieldCheck,
   IconTrendingUp,
 } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Landing() {
+  const navigate = useNavigate();
+
   return (
     <Box style={{ background: '#0a0a0a', minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
       {/* Futuristic grid background */}
@@ -173,6 +176,9 @@ export default function Landing() {
                 fontSize: '18px',
                 padding: '24px 48px',
                 height: 'auto',
+              }}
+              onClick={() => {
+                navigate('/login');
               }}
             >
               Get Started
