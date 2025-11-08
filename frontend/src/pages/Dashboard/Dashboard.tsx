@@ -1,70 +1,31 @@
-// frontend/src/pages/Dashboard/Dashboard.tsx
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import {
-	Container,
-	Title,
-	Text,
-	Button,
-	Stack,
-	Box,
-	Group,
-	Grid,
-	Card,
-	Modal,
-	TextInput,
-	Select,
-	NumberInput,
-	ActionIcon,
-	Menu,
-	Divider,
-	Loader,
-} from "@mantine/core";
+import { Container, Title, Text, Button, Stack, Box, Group, Grid, Card, Modal, Stepper, Loader, TextInput } from "@mantine/core";
 import "@mantine/core/styles.css";
-import { DateTimePicker } from "@mantine/dates";
 import "@mantine/dates/styles.css";
-import {
-	IconPlus,
-	IconTrendingUp,
-	IconTrendingDown,
-	IconLogout,
-	IconDotsVertical,
-	IconEdit,
-	IconTrash,
-	IconChartPie,
-	IconBuildingBank,
-	IconHome,
-	IconCoin,
-	IconChartLine,
-	IconWallet,
-	IconSearch,
-} from "@tabler/icons-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { IconPlus, IconChartPie } from "@tabler/icons-react";
 import { getMyAssets, createAsset, updateAsset, deleteAsset, AssetType, type Asset, type AssetCreate } from "../../api/assets";
-import StockSearchModal from "../../components/stocks/StockSearchModal";
-
-const ASSET_TYPES = [
-	{ value: "stocks", label: "Stocks", icon: IconChartLine, color: "#3b82f6" },
-	{ value: "bonds", label: "Bonds", icon: IconBuildingBank, color: "#8b5cf6" },
-	{ value: "crypto", label: "Cryptocurrency", icon: IconCoin, color: "#f59e0b" },
-	{ value: "real-estate", label: "Real Estate", icon: IconHome, color: "#10b981" },
-	{ value: "cash", label: "Cash & Savings", icon: IconWallet, color: "#06b6d4" },
-	{ value: "other", label: "Other Assets", icon: IconChartPie, color: "#ec4899" },
-];
+import { DashboardHeader } from "./components/DashboardHeader";
+import { PortfolioSummary } from "./components/PortfolioSummary";
+import { AssetTypeSelector, ASSET_TYPES } from "./components/AssetTypeSelector";
+import { AssetCard } from "../../components/assets/AssetCard";
+import { StockDetailsForm } from "../../components/stocks/StockDetailsForm";
+import { BondsDetailsForm } from "../../components/bonds/BondsDetailsForm";
+import { CommonAssetFields } from "../../components/common/CommonAssetFields";
 
 const Dashboard: React.FC = () => {
 	const { user, logout } = useAuth();
 	const [assets, setAssets] = useState<Asset[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [modalOpened, setModalOpened] = useState(false);
-	const [stockSearchOpened, setStockSearchOpened] = useState(false);
 	const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+	const [activeStep, setActiveStep] = useState(0);
+
 	const [formData, setFormData] = useState<AssetCreate>({
 		name: "",
 		type: AssetType.STOCKS,
 		symbol: "",
-		exchange: "",
+		mic_code: "",
 		purchase_price: 0,
 		purchase_date: new Date().toISOString(),
 		quantity: 1,
@@ -83,8 +44,6 @@ const Dashboard: React.FC = () => {
 		setLoading(false);
 	};
 
-	const totalNetWorth = assets.reduce((sum, asset) => sum + asset.purchase_price * (asset.quantity || 1), 0);
-
 	const handleAddAsset = async () => {
 		if (editingAsset) {
 			const result = await updateAsset(editingAsset.id, formData);
@@ -97,9 +56,7 @@ const Dashboard: React.FC = () => {
 				await loadAssets();
 			}
 		}
-		setModalOpened(false);
-		setEditingAsset(null);
-		resetForm();
+		closeModal();
 	};
 
 	const handleDeleteAsset = async (id: number) => {
@@ -117,11 +74,12 @@ const Dashboard: React.FC = () => {
 			name: asset.name,
 			type: asset.type,
 			symbol: asset.symbol,
-			exchange: asset.exchange,
+			mic_code: asset.mic_code,
 			purchase_price: asset.purchase_price,
 			purchase_date: asset.purchase_date,
 			quantity: asset.quantity,
 		});
+		setActiveStep(1);
 		setModalOpened(true);
 	};
 
@@ -130,27 +88,87 @@ const Dashboard: React.FC = () => {
 			name: "",
 			type: AssetType.STOCKS,
 			symbol: "",
-			exchange: "",
+			mic_code: "",
 			purchase_price: 0,
 			purchase_date: new Date().toISOString(),
 			quantity: 1,
 		});
+		setActiveStep(0);
 	};
 
-	const handleStockSelect = (stock: { symbol: string; name: string; exchange: string }) => {
-		setFormData({
-			...formData,
-			name: stock.name,
-			symbol: stock.symbol,
-			exchange: stock.exchange,
-		});
+	const closeModal = () => {
+		setModalOpened(false);
+		setEditingAsset(null);
+		resetForm();
 	};
 
-	const assetsByType = ASSET_TYPES.map((type) => ({
-		name: type.label,
-		value: assets.filter((a) => a.type === type.value).reduce((sum, a) => sum + a.purchase_price * (a.quantity || 1), 0),
-		color: type.color,
-	})).filter((item) => item.value > 0);
+	const nextStep = () => setActiveStep((current) => (current < 1 ? current + 1 : current));
+	const prevStep = () => setActiveStep((current) => (current > 0 ? current - 1 : current));
+
+	const renderDetailsForm = () => {
+		switch (formData.type) {
+			case AssetType.STOCKS:
+				return (
+					<StockDetailsForm
+						name={formData.name}
+						symbol={formData.symbol || ""}
+						micCode={formData.mic_code || ""}
+						purchasePrice={formData.purchase_price}
+						quantity={formData.quantity || 1}
+						purchaseDate={formData.purchase_date || new Date().toISOString()}
+						onNameChange={(value) => setFormData({ ...formData, name: value })}
+						onSymbolChange={(symbol, name, micCode) => setFormData({ ...formData, symbol, name, mic_code: micCode })}
+						onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
+						onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
+						onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
+					/>
+				);
+
+			case AssetType.BONDS:
+				return (
+					<BondsDetailsForm
+						name={formData.name}
+						purchasePrice={formData.purchase_price}
+						quantity={formData.quantity || 1}
+						purchaseDate={formData.purchase_date || new Date().toISOString()}
+						onNameChange={(value) => setFormData({ ...formData, name: value })}
+						onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
+						onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
+						onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
+					/>
+				);
+
+			default:
+				// For real-estate, cash, other
+				return (
+					<Stack gap="md" mt="xl">
+						<TextInput
+							label="Asset Name"
+							placeholder="e.g., My House, Savings Account, etc."
+							value={formData.name}
+							onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+							required
+							styles={{
+								label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
+								input: {
+									background: "rgba(255,255,255,0.05)",
+									border: "1px solid rgba(255,255,255,0.1)",
+									color: "white",
+								},
+							}}
+						/>
+						<CommonAssetFields
+							purchasePrice={formData.purchase_price}
+							quantity={formData.quantity || 1}
+							purchaseDate={formData.purchase_date || new Date().toISOString()}
+							onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
+							onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
+							onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
+						/>
+					</Stack>
+				);
+		}
+	};
 
 	if (loading) {
 		return (
@@ -180,61 +198,9 @@ const Dashboard: React.FC = () => {
 			/>
 
 			<Container size="xl" style={{ position: "relative", zIndex: 1 }} py={40}>
-				{/* Header */}
-				<Group justify="space-between" mb={40}>
-					<Stack gap={4}>
-						<Text size="sm" style={{ color: "rgba(255,255,255,0.4)" }}>
-							Welcome back,
-						</Text>
-						<Title order={2} style={{ color: "white" }}>
-							{user?.name || "Loading..."}
-						</Title>
-					</Stack>
-					<Button leftSection={<IconLogout size={18} />} variant="subtle" color="gray" onClick={logout}>
-						Logout
-					</Button>
-				</Group>
+				<DashboardHeader userName={user?.name || "Loading..."} onLogout={logout} />
 
-				{/* Main Net Worth Display */}
-				<Box
-					mb={40}
-					p={60}
-					style={{
-						background: "rgba(255,255,255,0.02)",
-						border: "1px solid rgba(59, 130, 246, 0.2)",
-						borderRadius: "24px",
-						backdropFilter: "blur(20px)",
-					}}
-				>
-					<Stack align="center" gap="md">
-						<Text
-							size="sm"
-							fw={500}
-							style={{
-								color: "rgba(255,255,255,0.4)",
-								letterSpacing: "0.1em",
-								textTransform: "uppercase",
-							}}
-						>
-							Total Portfolio Value
-						</Text>
-						<Title
-							order={1}
-							style={{
-								fontSize: "96px",
-								fontWeight: 900,
-								background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
-								WebkitBackgroundClip: "text",
-								WebkitTextFillColor: "transparent",
-								backgroundClip: "text",
-								letterSpacing: "-0.02em",
-								lineHeight: 1,
-							}}
-						>
-							${totalNetWorth.toLocaleString()}
-						</Title>
-					</Stack>
-				</Box>
+				<PortfolioSummary assets={assets} />
 
 				{/* Assets Section */}
 				<Stack gap="lg">
@@ -286,130 +252,15 @@ const Dashboard: React.FC = () => {
 					) : (
 						<Grid gutter="lg">
 							{assets.map((asset) => {
-								const assetType = ASSET_TYPES.find((t) => t.value === asset.type);
-								const Icon = assetType?.icon || IconChartPie;
-								const totalValue = asset.purchase_price * (asset.quantity || 1);
-
+								const assetType = ASSET_TYPES.find((t) => t.value === asset.type)!;
 								return (
 									<Grid.Col key={asset.id} span={{ base: 12, sm: 6, md: 4 }}>
-										<Card
-											padding="lg"
-											radius="lg"
-											style={{
-												background: "rgba(255,255,255,0.02)",
-												border: "1px solid rgba(59, 130, 246, 0.2)",
-												backdropFilter: "blur(20px)",
-												height: "100%",
-											}}
-										>
-											<Stack gap="md" h="100%">
-												<Group justify="space-between">
-													<Box
-														style={{
-															width: "40px",
-															height: "40px",
-															borderRadius: "10px",
-															background: `${assetType?.color}15`,
-															display: "flex",
-															alignItems: "center",
-															justifyContent: "center",
-														}}
-													>
-														<Icon size={20} color={assetType?.color} />
-													</Box>
-													<Menu position="bottom-end">
-														<Menu.Target>
-															<ActionIcon variant="subtle" color="gray">
-																<IconDotsVertical size={18} />
-															</ActionIcon>
-														</Menu.Target>
-														<Menu.Dropdown
-															style={{
-																background: "rgba(0,0,0,0.95)",
-																border: "1px solid rgba(59, 130, 246, 0.2)",
-															}}
-														>
-															<Menu.Item
-																leftSection={<IconEdit size={16} />}
-																onClick={() => openEditModal(asset)}
-																style={{ color: "white" }}
-															>
-																Edit
-															</Menu.Item>
-															<Menu.Item
-																leftSection={<IconTrash size={16} />}
-																color="red"
-																onClick={() => handleDeleteAsset(asset.id)}
-															>
-																Delete
-															</Menu.Item>
-														</Menu.Dropdown>
-													</Menu>
-												</Group>
-
-												<Stack gap={4}>
-													<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-														{assetType?.label}
-													</Text>
-													<Title order={4} style={{ color: "white" }} lineClamp={1}>
-														{asset.name}
-													</Title>
-													{asset.symbol && (
-														<Group gap="xs">
-															<Text size="xs" c="dimmed">
-																{asset.symbol}
-															</Text>
-															{asset.exchange && (
-																<Text size="xs" c="dimmed">
-																	• {asset.exchange}
-																</Text>
-															)}
-														</Group>
-													)}
-												</Stack>
-
-												<Box style={{ flex: 1 }} />
-
-												<Divider color="rgba(255,255,255,0.1)" />
-
-												<Stack gap="xs">
-													<Group justify="space-between">
-														<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-															Quantity
-														</Text>
-														<Text size="sm" fw={600} style={{ color: "white" }}>
-															{asset.quantity || 1}
-														</Text>
-													</Group>
-													<Group justify="space-between">
-														<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-															Purchase Price
-														</Text>
-														<Text size="sm" fw={600} style={{ color: "white" }}>
-															${asset.purchase_price.toLocaleString()}
-														</Text>
-													</Group>
-													<Group justify="space-between">
-														<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-															Total Value
-														</Text>
-														<Text size="lg" fw={700} style={{ color: "white" }}>
-															${totalValue.toLocaleString()}
-														</Text>
-													</Group>
-													{asset.purchase_date && (
-														<Group justify="space-between">
-															<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-																Purchase Date
-															</Text>
-															<Text size="xs" style={{ color: "rgba(255,255,255,0.6)" }}>
-																{new Date(asset.purchase_date).toLocaleDateString()}
-															</Text>
-														</Group>
-													)}
-												</Stack>
-											</Stack>
-										</Card>
+										<AssetCard
+											asset={asset}
+											assetType={assetType}
+											onEdit={openEditModal}
+											onDelete={handleDeleteAsset}
+										/>
 									</Grid.Col>
 								);
 							})}
@@ -421,14 +272,10 @@ const Dashboard: React.FC = () => {
 			{/* Add/Edit Asset Modal */}
 			<Modal
 				opened={modalOpened}
-				onClose={() => {
-					setModalOpened(false);
-					setEditingAsset(null);
-					resetForm();
-				}}
+				onClose={closeModal}
 				title={editingAsset ? "Edit Asset" : "Add New Asset"}
 				centered
-				size="md"
+				size="lg"
 				styles={{
 					content: { backgroundColor: "#1a1a1a", border: "2px solid #3b82f6" },
 					header: { backgroundColor: "#1a1a1a", borderBottom: "1px solid rgba(59, 130, 246, 0.3)" },
@@ -436,165 +283,38 @@ const Dashboard: React.FC = () => {
 					body: { backgroundColor: "#1a1a1a" },
 				}}
 			>
-				<Stack gap="md">
-					<Select
-						label="Asset Type"
-						placeholder="Select type"
-						value={formData.type}
-						onChange={(value) => {
-							setFormData({ ...formData, type: value as AssetType });
-							// Reset stock-specific fields if changing away from stocks
-							if (value !== AssetType.STOCKS) {
-								setFormData({ ...formData, type: value as AssetType, symbol: "", exchange: "" });
-							}
-						}}
-						data={ASSET_TYPES.map((t) => ({ value: t.value, label: t.label }))}
-						styles={{
-							label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
-							input: { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white" },
-						}}
-					/>
-
-					{formData.type === AssetType.STOCKS && (
-						<>
-							<Button
-								leftSection={<IconSearch size={18} />}
-								variant="light"
-								onClick={() => setStockSearchOpened(true)}
-								fullWidth
-							>
-								Search for Stock
+				<Stepper active={activeStep} onStepClick={setActiveStep} color="blue">
+					<Stepper.Step label="Asset Type" description="Choose asset category">
+						<AssetTypeSelector selectedType={formData.type} onSelect={(type) => setFormData({ ...formData, type })} />
+						<Group justify="flex-end" mt="xl">
+							<Button onClick={nextStep} style={{ background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)" }}>
+								Next Step
 							</Button>
+						</Group>
+					</Stepper.Step>
 
-							<TextInput
-								label="Stock Symbol"
-								placeholder="e.g., AAPL"
-								value={formData.symbol || ""}
-								onChange={(e) => setFormData({ ...formData, symbol: e.target.value.toUpperCase() })}
-								required
-								styles={{
-									label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
-									input: {
-										background: "rgba(255,255,255,0.05)",
-										border: "1px solid rgba(255,255,255,0.1)",
-										color: "white",
-									},
-								}}
-							/>
-
-							<TextInput
-								label="Exchange"
-								placeholder="e.g., NASDAQ"
-								value={formData.exchange || ""}
-								onChange={(e) => setFormData({ ...formData, exchange: e.target.value.toUpperCase() })}
-								required
-								styles={{
-									label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
-									input: {
-										background: "rgba(255,255,255,0.05)",
-										border: "1px solid rgba(255,255,255,0.1)",
-										color: "white",
-									},
-								}}
-							/>
-						</>
-					)}
-
-					<TextInput
-						label="Asset Name"
-						placeholder="e.g., Apple Inc, Bitcoin, etc."
-						value={formData.name}
-						onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-						required
-						styles={{
-							label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
-							input: { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white" },
-						}}
-					/>
-
-					<NumberInput
-						label="Purchase Price"
-						placeholder="Price per unit"
-						value={formData.purchase_price}
-						onChange={(value) => setFormData({ ...formData, purchase_price: Number(value) || 0 })}
-						prefix="$"
-						thousandSeparator=","
-						decimalScale={2}
-						required
-						styles={{
-							label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
-							input: { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white" },
-						}}
-					/>
-
-					<NumberInput
-						label="Quantity"
-						placeholder="Number of units"
-						value={formData.quantity}
-						onChange={(value) => setFormData({ ...formData, quantity: Number(value) || 1 })}
-						min={0.000001}
-						decimalScale={6}
-						required
-						styles={{
-							label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
-							input: { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white" },
-						}}
-					/>
-
-					<DateTimePicker
-						label="Purchase Date"
-						placeholder="When did you buy this?"
-						value={formData.purchase_date || new Date().toISOString()}
-						onChange={(value) => {
-							// 'value' is string | null in your Mantine setup
-							setFormData({
-								...formData,
-								purchase_date: value || new Date().toISOString(),
-							});
-						}}
-						styles={{
-							label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
-							input: {
-								background: "rgba(255,255,255,0.05)",
-								border: "1px solid rgba(255,255,255,0.1)",
-								color: "white",
-							},
-						}}
-					/>
-
-					<Group justify="flex-end" mt="md">
-						<Button
-							variant="subtle"
-							color="gray"
-							onClick={() => {
-								setModalOpened(false);
-								setEditingAsset(null);
-								resetForm();
-							}}
-						>
-							Cancel
-						</Button>
-						<Button
-							onClick={handleAddAsset}
-							disabled={
-								!formData.name ||
-								formData.purchase_price <= 0 ||
-								!formData.quantity ||
-								(formData.type === AssetType.STOCKS && (!formData.symbol || !formData.exchange))
-							}
-							style={{
-								background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
-								border: "none",
-							}}
-						>
-							{editingAsset ? "Update" : "Add"} Asset
-						</Button>
-					</Group>
-				</Stack>
+					<Stepper.Step label="Details" description="Enter asset information">
+						{renderDetailsForm()}
+						<Group justify="space-between" mt="xl">
+							<Button variant="subtle" onClick={prevStep}>
+								Back
+							</Button>
+							<Button
+								onClick={handleAddAsset}
+								disabled={
+									!formData.name ||
+									formData.purchase_price <= 0 ||
+									!formData.quantity ||
+									(formData.type === AssetType.STOCKS && (!formData.symbol || !formData.mic_code))
+								}
+								style={{ background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)" }}
+							>
+								{editingAsset ? "Update" : "Add"} Asset
+							</Button>
+						</Group>
+					</Stepper.Step>
+				</Stepper>
 			</Modal>
-
-			{/* Stock Search Modal */}
-			<StockSearchModal opened={stockSearchOpened} onClose={() => setStockSearchOpened(false)} onSelect={handleStockSelect} />
 		</Box>
 	);
 };

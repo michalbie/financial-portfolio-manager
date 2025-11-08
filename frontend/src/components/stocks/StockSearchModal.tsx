@@ -8,7 +8,7 @@ import { searchStocksBySymbol } from "../../api/assets";
 interface StockSearchModalProps {
 	opened: boolean;
 	onClose: () => void;
-	onSelect: (stock: { symbol: string; name: string; exchange: string; country: string; currency: string }) => void;
+	onSelect: (stock: { symbol: string; name: string; exchange: string; mic_code: string; country: string; currency: string }) => void;
 }
 
 const StockSearchModal: React.FC<StockSearchModalProps> = ({ opened, onClose, onSelect }) => {
@@ -119,19 +119,23 @@ const StockSearchModal: React.FC<StockSearchModalProps> = ({ opened, onClose, on
 									<Table.Th>Symbol</Table.Th>
 									<Table.Th>Name</Table.Th>
 									<Table.Th>Exchange</Table.Th>
+									<Table.Th>MIC Code</Table.Th>
 									<Table.Th>Country</Table.Th>
 									<Table.Th></Table.Th>
 								</Table.Tr>
 							</Table.Thead>
 							<Table.Tbody>
 								{searchResults.map((stock, index) => (
-									<Table.Tr key={index}>
+									<Table.Tr key={`${stock.mic_code}-${index}`}>
 										<Table.Td>
 											<Badge color="blue">{stock.symbol}</Badge>
 										</Table.Td>
 										<Table.Td>{stock.name}</Table.Td>
 										<Table.Td>
 											<Badge variant="light">{stock.exchange}</Badge>
+										</Table.Td>
+										<Table.Td>
+											<Badge variant="outline">{stock.mic_code}</Badge>
 										</Table.Td>
 										<Table.Td>{stock.country}</Table.Td>
 										<Table.Td>

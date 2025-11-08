@@ -16,8 +16,9 @@ export interface Asset {
 	name: string;
 	type: AssetType;
 	symbol?: string;
-	exchange?: string;
+	mic_code?: string; // ← MIC code instead of exchange
 	purchase_price: number;
+	current_price?: number;
 	purchase_date?: string;
 	quantity?: number;
 	user_id: number;
@@ -29,7 +30,7 @@ export interface AssetCreate {
 	name: string;
 	type: AssetType;
 	symbol?: string;
-	exchange?: string;
+	mic_code?: string; // ← MIC code instead of exchange
 	purchase_price: number;
 	purchase_date?: string;
 	quantity?: number;
@@ -39,7 +40,7 @@ export interface AssetUpdate {
 	name?: string;
 	type?: AssetType;
 	symbol?: string;
-	exchange?: string;
+	mic_code?: string; // ← MIC code instead of exchange
 	purchase_price?: number;
 	purchase_date?: string;
 	quantity?: number;
@@ -51,6 +52,7 @@ export interface StockSearchResult {
 		symbol: string;
 		name: string;
 		exchange: string;
+		mic_code: string; // ← MIC code
 		country: string;
 		currency: string;
 	}[];
@@ -67,7 +69,7 @@ export interface PriceData {
 
 export interface PriceHistoryResponse {
 	symbol: string;
-	exchange: string;
+	mic_code: string; // ← MIC code
 	start_date: string;
 	end_date: string;
 	data: PriceData[];
@@ -121,12 +123,12 @@ export function searchStocksBySymbol(symbol: string) {
 }
 
 // Get price history for a stock
-export function getStockPriceHistory(symbol: string, exchange: string, startDate?: string, endDate?: string) {
+export function getStockPriceHistory(symbol: string, mic_code: string, startDate?: string, endDate?: string) {
 	const params: Record<string, string> = {};
 	if (startDate) params.start_date = startDate;
 	if (endDate) params.end_date = endDate;
 
-	return makeSafeRequest<PriceHistoryResponse>(`assets/prices/${symbol}/${exchange}`, "GET", {
+	return makeSafeRequest<PriceHistoryResponse>(`assets/prices/${symbol}/${mic_code}`, "GET", {
 		params,
 		onErrorMessage: "Failed to load price history.",
 	});
