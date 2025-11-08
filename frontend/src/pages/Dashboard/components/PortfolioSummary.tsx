@@ -54,7 +54,7 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ assets }) =>
 						lineHeight: 1,
 					}}
 				>
-					${totalNetWorth.toLocaleString()}
+					${totalNetWorth.toFixed(2)}
 				</Title>
 				<Text
 					size="lg"

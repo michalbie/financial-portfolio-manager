@@ -73,7 +73,7 @@ class AssetType(str, enum.Enum):
     BONDS = "bonds"
     CRYPTO = "crypto"
     REAL_ESTATE = "real-estate"
-    CASH = "cash"
+    SAVINGS = "savings"
     OTHER = "other"
 
 

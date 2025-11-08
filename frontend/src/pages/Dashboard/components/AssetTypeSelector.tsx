@@ -8,7 +8,7 @@ export const ASSET_TYPES = [
 	{ value: "bonds", label: "Bonds", icon: IconBuildingBank, color: "#8b5cf6" },
 	{ value: "crypto", label: "Cryptocurrency", icon: IconCoin, color: "#f59e0b" },
 	{ value: "real-estate", label: "Real Estate", icon: IconHome, color: "#10b981" },
-	{ value: "cash", label: "Cash & Savings", icon: IconWallet, color: "#06b6d4" },
+	{ value: "savings", label: "Savings", icon: IconWallet, color: "#06b6d4" },
 	{ value: "other", label: "Other Assets", icon: IconChartPie, color: "#ec4899" },
 ];
 

@@ -12,6 +12,7 @@ import { AssetCard } from "../../components/assets/AssetCard";
 import { StockDetailsForm } from "../../components/stocks/StockDetailsForm";
 import { BondsDetailsForm } from "../../components/bonds/BondsDetailsForm";
 import { CommonAssetFields } from "../../components/common/CommonAssetFields";
+import { SavingsDetailsForm } from "../../components/savings/SavingsDetailsForm";
 
 const Dashboard: React.FC = () => {
 	const { user, logout } = useAuth();
@@ -138,8 +139,16 @@ const Dashboard: React.FC = () => {
 					/>
 				);
 
+			case AssetType.SAVINGS:
+				return (
+					<SavingsDetailsForm
+						purchasePrice={formData.purchase_price}
+						onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
+						onNameChange={(value) => setFormData({ ...formData, name: value })}
+					/>
+				);
+
 			default:
-				// For real-estate, cash, other
 				return (
 					<Stack gap="md" mt="xl">
 						<TextInput
