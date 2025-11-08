@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Stack, Text, Title } from "@mantine/core";
 import type { Asset } from "../../../api/assets";
+import getGrowthPercent from "../../../common/getGrowthPercent";
 
 interface PortfolioSummaryProps {
 	assets: Asset[];
@@ -10,6 +11,11 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ assets }) =>
 	const totalNetWorth = assets.reduce((sum, asset) => {
 		const currentPrice = asset.current_price || asset.purchase_price;
 		return sum + currentPrice * (asset.quantity || 1);
+	}, 0);
+
+	const totalGrowth = assets.reduce((sum, asset) => {
+		const growth = getGrowthPercent(asset.purchase_price, asset.current_price || asset.purchase_price);
+		return sum + parseFloat(growth);
 	}, 0);
 
 	return (
@@ -50,6 +56,16 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ assets }) =>
 				>
 					${totalNetWorth.toLocaleString()}
 				</Title>
+				<Text
+					size="lg"
+					fw={500}
+					style={{
+						color: totalGrowth >= 0 ? "#10b981" : "#ef4444",
+					}}
+				>
+					{totalGrowth >= 0 ? "+" : ""}
+					{totalGrowth.toLocaleString()}%
+				</Text>
 			</Stack>
 		</Box>
 	);

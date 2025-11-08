@@ -3,8 +3,8 @@
 import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from assets.stock_fetcher import update_stock_list
-from assets.price_manager import (
+from assets.stocks.stock_fetcher import update_stock_list
+from assets.stocks.price_manager import (
     fetch_latest_prices_for_tracked_stocks,
     fetch_daily_prices_for_tracked_stocks,
     cleanup_old_price_data
@@ -17,7 +17,7 @@ async def initialize_scheduler():
     """Initialize all scheduled jobs"""
 
     # Update stock list weekly (background)
-    asyncio.create_task(update_stock_list())
+    # asyncio.create_task(update_stock_list())
     scheduler.add_job(update_stock_list, "interval", weeks=1)
 
     # Fetch hourly prices every hour (during market hours ideally)

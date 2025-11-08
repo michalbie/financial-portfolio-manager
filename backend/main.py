@@ -6,9 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 import os
 
-from auth import router as auth_router
-from admin import router as admin_router
-from assets.assets import router as assets_router  # NEW
+from routers.auth import router as auth_router
+from routers.admin import router as admin_router
+from routers.assets import router as assets_router
 from database.database import init_db, seed_default_data
 from scheduler.scheduler import initialize_scheduler
 

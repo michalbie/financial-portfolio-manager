@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from database.database import get_db
 from database.models import User, Role, Permission
-from auth import require_permission, get_current_user, get_user_permissions, get_user_roles
+from routers.auth import require_permission, get_current_user, get_user_permissions, get_user_roles
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 

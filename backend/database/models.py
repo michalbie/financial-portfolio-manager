@@ -1,6 +1,5 @@
-# backend/models.py - UPDATED ASSET MODEL
+# backend/models.py - CORRECTED VERSION
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table, Float, Enum, Date, Index
-from sqlalchemy import Column, Index, Integer, String, DateTime, ForeignKey, Table, Float, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -84,9 +83,8 @@ class Asset(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     symbol = Column(String, nullable=True, index=True)
-    # ← NEW: Store exchange with asset
-    mic_code = Column(String, nullable=True, index=True)
     exchange = Column(String, nullable=True, index=True)
+    mic_code = Column(String, nullable=True, index=True)
     type = Column(Enum(AssetType), nullable=False)
     purchase_price = Column(Float, nullable=False)
     purchase_date = Column(DateTime, nullable=True)
@@ -101,17 +99,17 @@ class Asset(Base):
     owner = relationship("User", back_populates="assets")
 
     __table_args__ = (
-        Index('idx_symbol_exchange', 'symbol', 'exchange'),
+        Index('idx_symbol_mic', 'symbol', 'mic_code'),
     )
 
 
-# Stock list
+# Stock list - (symbol, mic_code) uniquely identifies a stock
 class Stock(Base):
     __tablename__ = "stocks"
 
     symbol = Column(String, primary_key=True)
-    exchange = Column(String, primary_key=True)
-    mic_code = Column(String, primary_key=True)
+    mic_code = Column(String, primary_key=True)  # Composite primary key
+    exchange = Column(String, nullable=False, index=True)  # For display
     name = Column(String, nullable=False)
     country = Column(String, nullable=True, index=True)
     currency = Column(String, nullable=True)
@@ -119,6 +117,8 @@ class Stock(Base):
                         onupdate=datetime.utcnow)
 
     __table_args__ = (
+        Index('idx_symbol', 'symbol'),
+        Index('idx_mic_code', 'mic_code'),
         Index('idx_country_exchange', 'country', 'exchange'),
     )
 
@@ -128,7 +128,6 @@ class StockPrice(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     symbol = Column(String, nullable=False, index=True)
-    exchange = Column(String, nullable=False, index=True)
     mic_code = Column(String, nullable=False, index=True)
     datetime = Column(DateTime, nullable=False, index=True)
     interval = Column(String, nullable=False, index=True)  # "1hour", "1day"
@@ -140,7 +139,7 @@ class StockPrice(Base):
     volume = Column(Integer, nullable=True)
 
     __table_args__ = (
-        Index('idx_unique_price', 'symbol', 'exchange',
+        Index('idx_unique_price', 'symbol', 'mic_code',
               'datetime', 'interval', unique=True),
         Index('idx_symbol_interval_datetime',
               'symbol', 'interval', 'datetime'),

@@ -2,6 +2,7 @@ import React from "react";
 import { Card, Stack, Box, Group, ActionIcon, Menu, Text, Title, Divider } from "@mantine/core";
 import { IconDotsVertical, IconEdit, IconTrash } from "@tabler/icons-react";
 import type { Asset } from "../../api/assets";
+import getGrowthPercent from "../../common/getGrowthPercent";
 
 interface AssetCardProps {
 	asset: Asset;
@@ -16,7 +17,9 @@ interface AssetCardProps {
 
 export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, onDelete }) => {
 	const Icon = assetType.icon;
-	const totalValue = asset.purchase_price * (asset.quantity || 1);
+	const totalValue = (asset.current_price || asset.purchase_price) * (asset.quantity || 1);
+	const growthChange: string = getGrowthPercent(asset.purchase_price, asset.current_price || asset.purchase_price);
+	const growthValue: string = `${asset.current_price && asset.current_price > asset.purchase_price ? "+" : ""}${growthChange}%`;
 
 	return (
 		<Card
@@ -66,7 +69,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, 
 					</Menu>
 				</Group>
 
-				<Stack gap={4}>
+				<Stack gap={4} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
 					<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
 						{assetType.label}
 					</Text>
@@ -85,6 +88,18 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, 
 							)}
 						</Group>
 					)}
+
+					<Divider color="rgba(255,255,255,0.1)" />
+
+					<Text
+						size="sm"
+						fw={600}
+						style={{
+							color: asset.current_price && asset.current_price > asset.purchase_price ? "#10b981" : "#ef4444",
+						}}
+					>
+						{asset.current_price ? `${growthValue}` : "N/A"}
+					</Text>
 				</Stack>
 
 				<Box style={{ flex: 1 }} />

@@ -209,9 +209,6 @@ const Dashboard: React.FC = () => {
 							<Title order={2} style={{ color: "white" }} mb={4}>
 								Your Assets
 							</Title>
-							<Text size="sm" style={{ color: "rgba(255,255,255,0.4)" }}>
-								Manage your investment portfolio
-							</Text>
 						</div>
 						<Button
 							leftSection={<IconPlus size={18} />}
@@ -283,7 +280,7 @@ const Dashboard: React.FC = () => {
 					body: { backgroundColor: "#1a1a1a" },
 				}}
 			>
-				<Stepper active={activeStep} onStepClick={setActiveStep} color="blue">
+				<Stepper active={activeStep} onStepClick={setActiveStep} color="blue" mt={"1rem"}>
 					<Stepper.Step label="Asset Type" description="Choose asset category">
 						<AssetTypeSelector selectedType={formData.type} onSelect={(type) => setFormData({ ...formData, type })} />
 						<Group justify="flex-end" mt="xl">
