@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+// frontend/src/pages/Dashboard/Dashboard.tsx
+
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import {
 	Container,
@@ -17,8 +19,11 @@ import {
 	ActionIcon,
 	Menu,
 	Divider,
+	Loader,
 } from "@mantine/core";
 import "@mantine/core/styles.css";
+import { DateTimePicker } from "@mantine/dates";
+import "@mantine/dates/styles.css";
 import {
 	IconPlus,
 	IconTrendingUp,
@@ -33,16 +38,11 @@ import {
 	IconCoin,
 	IconChartLine,
 	IconWallet,
+	IconSearch,
 } from "@tabler/icons-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-
-interface Asset {
-	id: string;
-	name: string;
-	type: "stocks" | "bonds" | "crypto" | "real-estate" | "cash" | "other";
-	value: number;
-	purchasePrice: number;
-}
+import { getMyAssets, createAsset, updateAsset, deleteAsset, AssetType, type Asset, type AssetCreate } from "../../api/assets";
+import StockSearchModal from "../../components/stocks/StockSearchModal";
 
 const ASSET_TYPES = [
 	{ value: "stocks", label: "Stocks", icon: IconChartLine, color: "#3b82f6" },
@@ -53,55 +53,62 @@ const ASSET_TYPES = [
 	{ value: "other", label: "Other Assets", icon: IconChartPie, color: "#ec4899" },
 ];
 
-// Mock historical data
-const historicalData = [
-	{ month: "Jan", value: 950000 },
-	{ month: "Feb", value: 980000 },
-	{ month: "Mar", value: 1020000 },
-	{ month: "Apr", value: 1100000 },
-	{ month: "May", value: 1150000 },
-	{ month: "Jun", value: 1247382 },
-];
-
 const Dashboard: React.FC = () => {
 	const { user, logout } = useAuth();
-	const [assets, setAssets] = useState<Asset[]>([
-		{ id: "1", name: "Apple Stock", type: "stocks", value: 450000, purchasePrice: 400000 },
-		{ id: "2", name: "Treasury Bonds", type: "bonds", value: 200000, purchasePrice: 200000 },
-		{ id: "3", name: "Bitcoin", type: "crypto", value: 150000, purchasePrice: 100000 },
-		{ id: "4", name: "Primary Residence", type: "real-estate", value: 400000, purchasePrice: 350000 },
-		{ id: "5", name: "Savings Account", type: "cash", value: 47382, purchasePrice: 47382 },
-	]);
+	const [assets, setAssets] = useState<Asset[]>([]);
+	const [loading, setLoading] = useState(true);
 	const [modalOpened, setModalOpened] = useState(false);
+	const [stockSearchOpened, setStockSearchOpened] = useState(false);
 	const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
-	const [formData, setFormData] = useState({
+	const [formData, setFormData] = useState<AssetCreate>({
 		name: "",
-		type: "stocks" as Asset["type"],
-		value: 0,
-		purchasePrice: 0,
+		type: AssetType.STOCKS,
+		symbol: "",
+		exchange: "",
+		purchase_price: 0,
+		purchase_date: new Date().toISOString(),
+		quantity: 1,
 	});
 
-	const totalNetWorth = assets.reduce((sum, asset) => sum + asset.value, 0);
-	const totalGainLoss = assets.reduce((sum, asset) => sum + (asset.value - asset.purchasePrice), 0);
-	const gainLossPercentage = ((totalGainLoss / (totalNetWorth - totalGainLoss)) * 100).toFixed(2);
+	useEffect(() => {
+		loadAssets();
+	}, []);
 
-	const handleAddAsset = () => {
+	const loadAssets = async () => {
+		setLoading(true);
+		const data = await getMyAssets();
+		if (data) {
+			setAssets(data);
+		}
+		setLoading(false);
+	};
+
+	const totalNetWorth = assets.reduce((sum, asset) => sum + asset.purchase_price * (asset.quantity || 1), 0);
+
+	const handleAddAsset = async () => {
 		if (editingAsset) {
-			setAssets(assets.map((a) => (a.id === editingAsset.id ? { ...editingAsset, ...formData } : a)));
+			const result = await updateAsset(editingAsset.id, formData);
+			if (result) {
+				await loadAssets();
+			}
 		} else {
-			const newAsset: Asset = {
-				id: Date.now().toString(),
-				...formData,
-			};
-			setAssets([...assets, newAsset]);
+			const result = await createAsset(formData);
+			if (result) {
+				await loadAssets();
+			}
 		}
 		setModalOpened(false);
 		setEditingAsset(null);
-		setFormData({ name: "", type: "stocks", value: 0, purchasePrice: 0 });
+		resetForm();
 	};
 
-	const handleDeleteAsset = (id: string) => {
-		setAssets(assets.filter((a) => a.id !== id));
+	const handleDeleteAsset = async (id: number) => {
+		if (window.confirm("Are you sure you want to delete this asset?")) {
+			const result = await deleteAsset(id);
+			if (result) {
+				await loadAssets();
+			}
+		}
 	};
 
 	const openEditModal = (asset: Asset) => {
@@ -109,17 +116,49 @@ const Dashboard: React.FC = () => {
 		setFormData({
 			name: asset.name,
 			type: asset.type,
-			value: asset.value,
-			purchasePrice: asset.purchasePrice,
+			symbol: asset.symbol,
+			exchange: asset.exchange,
+			purchase_price: asset.purchase_price,
+			purchase_date: asset.purchase_date,
+			quantity: asset.quantity,
 		});
 		setModalOpened(true);
 	};
 
+	const resetForm = () => {
+		setFormData({
+			name: "",
+			type: AssetType.STOCKS,
+			symbol: "",
+			exchange: "",
+			purchase_price: 0,
+			purchase_date: new Date().toISOString(),
+			quantity: 1,
+		});
+	};
+
+	const handleStockSelect = (stock: { symbol: string; name: string; exchange: string }) => {
+		setFormData({
+			...formData,
+			name: stock.name,
+			symbol: stock.symbol,
+			exchange: stock.exchange,
+		});
+	};
+
 	const assetsByType = ASSET_TYPES.map((type) => ({
 		name: type.label,
-		value: assets.filter((a) => a.type === type.value).reduce((sum, a) => sum + a.value, 0),
+		value: assets.filter((a) => a.type === type.value).reduce((sum, a) => sum + a.purchase_price * (a.quantity || 1), 0),
 		color: type.color,
 	})).filter((item) => item.value > 0);
+
+	if (loading) {
+		return (
+			<Box style={{ background: "#0a0a0a", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+				<Loader size="xl" color="blue" />
+			</Box>
+		);
+	}
 
 	return (
 		<Box style={{ background: "#0a0a0a", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
@@ -137,19 +176,6 @@ const Dashboard: React.FC = () => {
           `,
 					backgroundSize: "50px 50px",
 					opacity: 0.3,
-				}}
-			/>
-
-			<Box
-				style={{
-					position: "absolute",
-					top: "10%",
-					left: "50%",
-					transform: "translateX(-50%)",
-					width: "1000px",
-					height: "1000px",
-					background: "radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%)",
-					pointerEvents: "none",
 				}}
 			/>
 
@@ -190,7 +216,7 @@ const Dashboard: React.FC = () => {
 								textTransform: "uppercase",
 							}}
 						>
-							Total Net Worth
+							Total Portfolio Value
 						</Text>
 						<Title
 							order={1}
@@ -207,145 +233,8 @@ const Dashboard: React.FC = () => {
 						>
 							${totalNetWorth.toLocaleString()}
 						</Title>
-						<Group gap="xs">
-							{totalGainLoss >= 0 ? (
-								<IconTrendingUp size={20} color="#10b981" />
-							) : (
-								<IconTrendingDown size={20} color="#ef4444" />
-							)}
-							<Text size="lg" fw={600} style={{ color: totalGainLoss >= 0 ? "#10b981" : "#ef4444" }}>
-								{totalGainLoss >= 0 ? "+" : ""}${totalGainLoss.toLocaleString()} ({gainLossPercentage}%)
-							</Text>
-							<Text size="sm" style={{ color: "rgba(255,255,255,0.4)" }}>
-								all time
-							</Text>
-						</Group>
 					</Stack>
 				</Box>
-
-				{/* Charts Section */}
-				<Grid gutter="xl" mb={40}>
-					{/* Performance Chart */}
-					<Grid.Col span={{ base: 12, md: 8 }}>
-						<Card
-							padding="xl"
-							radius="lg"
-							style={{
-								background: "rgba(255,255,255,0.02)",
-								border: "1px solid rgba(59, 130, 246, 0.2)",
-								backdropFilter: "blur(20px)",
-							}}
-						>
-							<Stack gap="lg">
-								<Group justify="space-between">
-									<div>
-										<Title order={3} style={{ color: "white" }} mb={4}>
-											Performance
-										</Title>
-										<Text size="sm" style={{ color: "rgba(255,255,255,0.4)" }}>
-											Last 6 months
-										</Text>
-									</div>
-								</Group>
-								<Box h={300}>
-									<ResponsiveContainer width="100%" height="100%">
-										<LineChart data={historicalData}>
-											<defs>
-												<linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-													<stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-													<stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-												</linearGradient>
-											</defs>
-											<CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-											<XAxis dataKey="month" stroke="rgba(255,255,255,0.4)" style={{ fontSize: "12px" }} />
-											<YAxis
-												stroke="rgba(255,255,255,0.4)"
-												style={{ fontSize: "12px" }}
-												tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-											/>
-											<Tooltip
-												contentStyle={{
-													background: "rgba(0,0,0,0.9)",
-													border: "1px solid rgba(59, 130, 246, 0.3)",
-													borderRadius: "8px",
-													color: "white",
-												}}
-												formatter={(value: number) => [`$${value.toLocaleString()}`, "Net Worth"]}
-											/>
-											<Line
-												type="monotone"
-												dataKey="value"
-												stroke="#3b82f6"
-												strokeWidth={3}
-												dot={{ fill: "#3b82f6", r: 4 }}
-												activeDot={{ r: 6 }}
-												fill="url(#colorValue)"
-											/>
-										</LineChart>
-									</ResponsiveContainer>
-								</Box>
-							</Stack>
-						</Card>
-					</Grid.Col>
-
-					{/* Asset Allocation */}
-					<Grid.Col span={{ base: 12, md: 4 }}>
-						<Card
-							padding="xl"
-							radius="lg"
-							style={{
-								background: "rgba(255,255,255,0.02)",
-								border: "1px solid rgba(59, 130, 246, 0.2)",
-								backdropFilter: "blur(20px)",
-							}}
-						>
-							<Stack gap="lg">
-								<div>
-									<Title order={3} style={{ color: "white" }} mb={4}>
-										Asset Allocation
-									</Title>
-									<Text size="sm" style={{ color: "rgba(255,255,255,0.4)" }}>
-										Portfolio breakdown
-									</Text>
-								</div>
-								<Box h={200}>
-									<ResponsiveContainer width="100%" height="100%">
-										<PieChart>
-											<Pie
-												data={assetsByType}
-												cx="50%"
-												cy="50%"
-												innerRadius={60}
-												outerRadius={80}
-												paddingAngle={2}
-												dataKey="value"
-											>
-												{assetsByType.map((entry, index) => (
-													<Cell key={`cell-${index}`} fill={entry.color} />
-												))}
-											</Pie>
-										</PieChart>
-									</ResponsiveContainer>
-								</Box>
-								<Stack gap="xs">
-									{assetsByType.map((item) => (
-										<Group key={item.name} justify="space-between">
-											<Group gap="xs">
-												<Box w={12} h={12} style={{ borderRadius: "4px", background: item.color }} />
-												<Text size="sm" style={{ color: "rgba(255,255,255,0.7)" }}>
-													{item.name}
-												</Text>
-											</Group>
-											<Text size="sm" fw={600} style={{ color: "white" }}>
-												{((item.value / totalNetWorth) * 100).toFixed(1)}%
-											</Text>
-										</Group>
-									))}
-								</Stack>
-							</Stack>
-						</Card>
-					</Grid.Col>
-				</Grid>
 
 				{/* Assets Section */}
 				<Stack gap="lg">
@@ -364,7 +253,7 @@ const Dashboard: React.FC = () => {
 							radius="xl"
 							onClick={() => {
 								setEditingAsset(null);
-								setFormData({ name: "", type: "stocks", value: 0, purchasePrice: 0 });
+								resetForm();
 								setModalOpened(true);
 							}}
 							style={{
@@ -376,107 +265,156 @@ const Dashboard: React.FC = () => {
 						</Button>
 					</Group>
 
-					<Grid gutter="lg">
-						{assets.map((asset) => {
-							const assetType = ASSET_TYPES.find((t) => t.value === asset.type);
-							const Icon = assetType?.icon || IconChartPie;
-							const gainLoss = asset.value - asset.purchasePrice;
-							const gainLossPercent = ((gainLoss / asset.purchasePrice) * 100).toFixed(2);
+					{assets.length === 0 ? (
+						<Card
+							padding="xl"
+							radius="lg"
+							style={{
+								background: "rgba(255,255,255,0.02)",
+								border: "1px solid rgba(59, 130, 246, 0.2)",
+								backdropFilter: "blur(20px)",
+								textAlign: "center",
+							}}
+						>
+							<Stack align="center" gap="md" py="xl">
+								<IconChartPie size={64} color="rgba(255,255,255,0.3)" />
+								<Text size="lg" c="dimmed">
+									No assets yet. Add your first asset to start tracking!
+								</Text>
+							</Stack>
+						</Card>
+					) : (
+						<Grid gutter="lg">
+							{assets.map((asset) => {
+								const assetType = ASSET_TYPES.find((t) => t.value === asset.type);
+								const Icon = assetType?.icon || IconChartPie;
+								const totalValue = asset.purchase_price * (asset.quantity || 1);
 
-							return (
-								<Grid.Col key={asset.id} span={{ base: 12, sm: 6, md: 4 }}>
-									<Card
-										padding="lg"
-										radius="lg"
-										style={{
-											background: "rgba(255,255,255,0.02)",
-											border: "1px solid rgba(59, 130, 246, 0.2)",
-											backdropFilter: "blur(20px)",
-											height: "100%",
-										}}
-									>
-										<Stack gap="md" h="100%">
-											<Group justify="space-between">
-												<Box
-													style={{
-														width: "40px",
-														height: "40px",
-														borderRadius: "10px",
-														background: `${assetType?.color}15`,
-														display: "flex",
-														alignItems: "center",
-														justifyContent: "center",
-													}}
-												>
-													<Icon size={20} color={assetType?.color} />
-												</Box>
-												<Menu position="bottom-end">
-													<Menu.Target>
-														<ActionIcon variant="subtle" color="gray">
-															<IconDotsVertical size={18} />
-														</ActionIcon>
-													</Menu.Target>
-													<Menu.Dropdown
+								return (
+									<Grid.Col key={asset.id} span={{ base: 12, sm: 6, md: 4 }}>
+										<Card
+											padding="lg"
+											radius="lg"
+											style={{
+												background: "rgba(255,255,255,0.02)",
+												border: "1px solid rgba(59, 130, 246, 0.2)",
+												backdropFilter: "blur(20px)",
+												height: "100%",
+											}}
+										>
+											<Stack gap="md" h="100%">
+												<Group justify="space-between">
+													<Box
 														style={{
-															background: "rgba(0,0,0,0.95)",
-															border: "1px solid rgba(59, 130, 246, 0.2)",
+															width: "40px",
+															height: "40px",
+															borderRadius: "10px",
+															background: `${assetType?.color}15`,
+															display: "flex",
+															alignItems: "center",
+															justifyContent: "center",
 														}}
 													>
-														<Menu.Item
-															leftSection={<IconEdit size={16} />}
-															onClick={() => openEditModal(asset)}
-															style={{ color: "white" }}
+														<Icon size={20} color={assetType?.color} />
+													</Box>
+													<Menu position="bottom-end">
+														<Menu.Target>
+															<ActionIcon variant="subtle" color="gray">
+																<IconDotsVertical size={18} />
+															</ActionIcon>
+														</Menu.Target>
+														<Menu.Dropdown
+															style={{
+																background: "rgba(0,0,0,0.95)",
+																border: "1px solid rgba(59, 130, 246, 0.2)",
+															}}
 														>
-															Edit
-														</Menu.Item>
-														<Menu.Item
-															leftSection={<IconTrash size={16} />}
-															color="red"
-															onClick={() => handleDeleteAsset(asset.id)}
-														>
-															Delete
-														</Menu.Item>
-													</Menu.Dropdown>
-												</Menu>
-											</Group>
-
-											<Stack gap={4}>
-												<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-													{assetType?.label}
-												</Text>
-												<Title order={4} style={{ color: "white" }} lineClamp={1}>
-													{asset.name}
-												</Title>
-											</Stack>
-
-											<Box style={{ flex: 1 }} />
-
-											<Divider color="rgba(255,255,255,0.1)" />
-
-											<Stack gap="xs">
-												<Group justify="space-between">
-													<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-														Current Value
-													</Text>
-													<Text size="lg" fw={700} style={{ color: "white" }}>
-														${asset.value.toLocaleString()}
-													</Text>
+															<Menu.Item
+																leftSection={<IconEdit size={16} />}
+																onClick={() => openEditModal(asset)}
+																style={{ color: "white" }}
+															>
+																Edit
+															</Menu.Item>
+															<Menu.Item
+																leftSection={<IconTrash size={16} />}
+																color="red"
+																onClick={() => handleDeleteAsset(asset.id)}
+															>
+																Delete
+															</Menu.Item>
+														</Menu.Dropdown>
+													</Menu>
 												</Group>
-												<Group justify="space-between">
+
+												<Stack gap={4}>
 													<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-														Gain/Loss
+														{assetType?.label}
 													</Text>
-													<Text size="sm" fw={600} style={{ color: gainLoss >= 0 ? "#10b981" : "#ef4444" }}>
-														{gainLoss >= 0 ? "+" : ""}${gainLoss.toLocaleString()} ({gainLossPercent}%)
-													</Text>
-												</Group>
+													<Title order={4} style={{ color: "white" }} lineClamp={1}>
+														{asset.name}
+													</Title>
+													{asset.symbol && (
+														<Group gap="xs">
+															<Text size="xs" c="dimmed">
+																{asset.symbol}
+															</Text>
+															{asset.exchange && (
+																<Text size="xs" c="dimmed">
+																	• {asset.exchange}
+																</Text>
+															)}
+														</Group>
+													)}
+												</Stack>
+
+												<Box style={{ flex: 1 }} />
+
+												<Divider color="rgba(255,255,255,0.1)" />
+
+												<Stack gap="xs">
+													<Group justify="space-between">
+														<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+															Quantity
+														</Text>
+														<Text size="sm" fw={600} style={{ color: "white" }}>
+															{asset.quantity || 1}
+														</Text>
+													</Group>
+													<Group justify="space-between">
+														<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+															Purchase Price
+														</Text>
+														<Text size="sm" fw={600} style={{ color: "white" }}>
+															${asset.purchase_price.toLocaleString()}
+														</Text>
+													</Group>
+													<Group justify="space-between">
+														<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+															Total Value
+														</Text>
+														<Text size="lg" fw={700} style={{ color: "white" }}>
+															${totalValue.toLocaleString()}
+														</Text>
+													</Group>
+													{asset.purchase_date && (
+														<Group justify="space-between">
+															<Text size="xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+																Purchase Date
+															</Text>
+															<Text size="xs" style={{ color: "rgba(255,255,255,0.6)" }}>
+																{new Date(asset.purchase_date).toLocaleDateString()}
+															</Text>
+														</Group>
+													)}
+												</Stack>
 											</Stack>
-										</Stack>
-									</Card>
-								</Grid.Col>
-							);
-						})}
-					</Grid>
+										</Card>
+									</Grid.Col>
+								);
+							})}
+						</Grid>
+					)}
 				</Stack>
 			</Container>
 
@@ -486,90 +424,134 @@ const Dashboard: React.FC = () => {
 				onClose={() => {
 					setModalOpened(false);
 					setEditingAsset(null);
+					resetForm();
 				}}
 				title={editingAsset ? "Edit Asset" : "Add New Asset"}
 				centered
 				size="md"
-				withinPortal={false}
-				overlayProps={{
-					backgroundOpacity: 0.55,
-					blur: 3,
-				}}
 				styles={{
-					content: {
-						backgroundColor: "#1a1a1a",
-						border: "2px solid #3b82f6",
-					},
-					header: {
-						backgroundColor: "#1a1a1a",
-						borderBottom: "1px solid rgba(59, 130, 246, 0.3)",
-					},
-					title: {
-						color: "white",
-						fontWeight: 700,
-						fontSize: "1.25rem",
-					},
-					body: {
-						backgroundColor: "#1a1a1a",
-					},
+					content: { backgroundColor: "#1a1a1a", border: "2px solid #3b82f6" },
+					header: { backgroundColor: "#1a1a1a", borderBottom: "1px solid rgba(59, 130, 246, 0.3)" },
+					title: { color: "white", fontWeight: 700, fontSize: "1.25rem" },
+					body: { backgroundColor: "#1a1a1a" },
 				}}
 			>
 				<Stack gap="md">
-					<TextInput
-						label="Asset Name"
-						placeholder="e.g., Apple Stock, Bitcoin, etc."
-						value={formData.name}
-						onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-						styles={{
-							label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
-							input: {
-								background: "rgba(255,255,255,0.05)",
-								border: "1px solid rgba(255,255,255,0.1)",
-								color: "white",
-							},
-						}}
-					/>
-
 					<Select
 						label="Asset Type"
 						placeholder="Select type"
 						value={formData.type}
-						onChange={(value) => setFormData({ ...formData, type: value as Asset["type"] })}
+						onChange={(value) => {
+							setFormData({ ...formData, type: value as AssetType });
+							// Reset stock-specific fields if changing away from stocks
+							if (value !== AssetType.STOCKS) {
+								setFormData({ ...formData, type: value as AssetType, symbol: "", exchange: "" });
+							}
+						}}
 						data={ASSET_TYPES.map((t) => ({ value: t.value, label: t.label }))}
 						styles={{
 							label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
-							input: {
-								background: "rgba(255,255,255,0.05)",
-								border: "1px solid rgba(255,255,255,0.1)",
-								color: "white",
-							},
+							input: { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white" },
 						}}
 					/>
 
-					<NumberInput
-						label="Current Value"
-						placeholder="Current market value"
-						value={formData.value}
-						onChange={(value) => setFormData({ ...formData, value: Number(value) || 0 })}
-						prefix="$"
-						thousandSeparator=","
+					{formData.type === AssetType.STOCKS && (
+						<>
+							<Button
+								leftSection={<IconSearch size={18} />}
+								variant="light"
+								onClick={() => setStockSearchOpened(true)}
+								fullWidth
+							>
+								Search for Stock
+							</Button>
+
+							<TextInput
+								label="Stock Symbol"
+								placeholder="e.g., AAPL"
+								value={formData.symbol || ""}
+								onChange={(e) => setFormData({ ...formData, symbol: e.target.value.toUpperCase() })}
+								required
+								styles={{
+									label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
+									input: {
+										background: "rgba(255,255,255,0.05)",
+										border: "1px solid rgba(255,255,255,0.1)",
+										color: "white",
+									},
+								}}
+							/>
+
+							<TextInput
+								label="Exchange"
+								placeholder="e.g., NASDAQ"
+								value={formData.exchange || ""}
+								onChange={(e) => setFormData({ ...formData, exchange: e.target.value.toUpperCase() })}
+								required
+								styles={{
+									label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
+									input: {
+										background: "rgba(255,255,255,0.05)",
+										border: "1px solid rgba(255,255,255,0.1)",
+										color: "white",
+									},
+								}}
+							/>
+						</>
+					)}
+
+					<TextInput
+						label="Asset Name"
+						placeholder="e.g., Apple Inc, Bitcoin, etc."
+						value={formData.name}
+						onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+						required
 						styles={{
 							label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
-							input: {
-								background: "rgba(255,255,255,0.05)",
-								border: "1px solid rgba(255,255,255,0.1)",
-								color: "white",
-							},
+							input: { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white" },
 						}}
 					/>
 
 					<NumberInput
 						label="Purchase Price"
-						placeholder="Original purchase price"
-						value={formData.purchasePrice}
-						onChange={(value) => setFormData({ ...formData, purchasePrice: Number(value) || 0 })}
+						placeholder="Price per unit"
+						value={formData.purchase_price}
+						onChange={(value) => setFormData({ ...formData, purchase_price: Number(value) || 0 })}
 						prefix="$"
 						thousandSeparator=","
+						decimalScale={2}
+						required
+						styles={{
+							label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
+							input: { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white" },
+						}}
+					/>
+
+					<NumberInput
+						label="Quantity"
+						placeholder="Number of units"
+						value={formData.quantity}
+						onChange={(value) => setFormData({ ...formData, quantity: Number(value) || 1 })}
+						min={0.000001}
+						decimalScale={6}
+						required
+						styles={{
+							label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
+							input: { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white" },
+						}}
+					/>
+
+					<DateTimePicker
+						label="Purchase Date"
+						placeholder="When did you buy this?"
+						value={formData.purchase_date || new Date().toISOString()}
+						onChange={(value) => {
+							// 'value' is string | null in your Mantine setup
+							setFormData({
+								...formData,
+								purchase_date: value || new Date().toISOString(),
+							});
+						}}
 						styles={{
 							label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
 							input: {
@@ -587,13 +569,19 @@ const Dashboard: React.FC = () => {
 							onClick={() => {
 								setModalOpened(false);
 								setEditingAsset(null);
+								resetForm();
 							}}
 						>
 							Cancel
 						</Button>
 						<Button
 							onClick={handleAddAsset}
-							disabled={!formData.name || formData.value <= 0 || formData.purchasePrice <= 0}
+							disabled={
+								!formData.name ||
+								formData.purchase_price <= 0 ||
+								!formData.quantity ||
+								(formData.type === AssetType.STOCKS && (!formData.symbol || !formData.exchange))
+							}
 							style={{
 								background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
 								border: "none",
@@ -604,6 +592,9 @@ const Dashboard: React.FC = () => {
 					</Group>
 				</Stack>
 			</Modal>
+
+			{/* Stock Search Modal */}
+			<StockSearchModal opened={stockSearchOpened} onClose={() => setStockSearchOpened(false)} onSelect={handleStockSelect} />
 		</Box>
 	);
 };
