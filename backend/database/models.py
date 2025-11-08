@@ -1,5 +1,5 @@
 # backend/models.py - UPDATED ASSET MODEL
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table, Float, Enum
+from sqlalchemy import Column, Index, Integer, String, DateTime, ForeignKey, Table, Float, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -106,8 +106,18 @@ class Stock(Base):
 
     symbol = Column(String, primary_key=True)
     exchange = Column(String, primary_key=True)
+    figi_code = Column(String, primary_key=True)
     name = Column(String, nullable=False)
     country = Column(String, nullable=True)
     currency = Column(String, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow,
                         onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        # For filtering by country then symbol
+        Index('idx_stock_country_symbol', 'country', 'symbol'),
+        # For filtering by exchange then country
+        Index('idx_stock_exchange_country', 'exchange', 'country'),
+        Index('idx_stock_symbol_exchange', 'symbol',
+              'exchange'),  # Composite unique lookup
+    )

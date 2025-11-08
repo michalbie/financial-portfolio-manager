@@ -11,7 +11,7 @@ from typing import List, Dict
 import os
 from sqlalchemy import text
 
-from database.database import SessionLocal
+from database.database import AsyncSessionLocal, SessionLocal
 from database.models import Asset, AssetType
 
 
@@ -33,7 +33,7 @@ class TwelveDataProvider(StockPriceProvider):
         self.base_url = "https://api.twelvedata.com"
 
     async def get_stocks_list(self) -> List[Dict]:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(f"{self.base_url}/stocks")
             data = response.json()
 
@@ -58,28 +58,54 @@ class TwelveDataProvider(StockPriceProvider):
 
 
 async def update_stock_list():
-    """Fetch and update stocks (not prices) in the database"""
+    """Fetch and update stocks (not prices) in the database - FULLY ASYNC"""
     print(f"[{datetime.utcnow()}] Updating stock list...")
-    db: Session = SessionLocal()
+
     provider = TwelveDataProvider()
 
-    async def fetch_and_update():
+    try:
+        # Async HTTP request
         stocks = await provider.get_stocks_list()
-        
-        db.execute(text("DELETE FROM stocks"))
-        for stock in stocks:
-            db.execute(
-                text("INSERT INTO stocks (symbol, name, exchange, country, currency) VALUES (:symbol, :name, :exchange, :country, :currency)"),
-                {
-                    "symbol": stock["symbol"],
-                    "name": stock["name"],
-                    "exchange": stock["exchange"],
-                    "country": stock["country"],
-                    "currency": stock["currency"]
-                }
-            )
 
-        db.commit()
-        db.close()
+        # Async database operations
+        async with AsyncSessionLocal() as db:
+            try:
+                # Delete existing stocks
+                await db.execute(text("DELETE FROM stocks"))
 
-    await fetch_and_update()
+                # Prepare batch insert
+                valid_stocks = []
+                for stock in stocks:
+                    if not stock['figi_code']:
+                        continue
+
+                    valid_stocks.append({
+                        "symbol": stock["symbol"],
+                        "name": stock["name"],
+                        "exchange": stock["exchange"],
+                        "country": stock["country"],
+                        "currency": stock["currency"],
+                        "figi_code": stock["figi_code"],
+                        "updated_at": datetime.utcnow()
+                    })
+
+                # Batch insert (much faster)
+                if valid_stocks:
+                    await db.execute(
+                        text("""
+                            INSERT INTO stocks (symbol, name, exchange, country, currency, figi_code, updated_at)
+                            VALUES (:symbol, :name, :exchange, :country, :currency, :figi_code, :updated_at)
+                        """),
+                        valid_stocks
+                    )
+
+                await db.commit()
+                print(f"✅ Successfully updated {len(valid_stocks)} stocks")
+
+            except Exception as e:
+                print(f"❌ Error updating stocks in DB: {e}")
+                await db.rollback()
+                raise
+
+    except Exception as e:
+        print(f"❌ Error in update_stock_list: {e}")
