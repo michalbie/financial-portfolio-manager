@@ -55,6 +55,50 @@ class TwelveDataProvider(StockPriceProvider):
                 return float(data["price"])
 
             raise ValueError(f"Could not fetch price for {symbol}")
+        
+    async def get_historical_prices(
+        self, 
+        symbol: str, 
+        interval: str = "1day",  # 1min, 5min, 15min, 30min, 1h, 1day, 1week, 1month
+        outputsize: int = 30,  # Number of data points (max 5000)
+        start_date: str = None,  # Format: "2024-01-01" or "2024-01-01 09:30:00"
+        end_date: str = None
+    ) -> List[Dict]:
+        """
+        Get historical OHLCV data
+        Returns: [
+            {
+                "datetime": "2024-01-15",
+                "open": "150.00",
+                "high": "152.00",
+                "low": "149.50",
+                "close": "151.00",
+                "volume": "1000000"
+            },
+            ...
+        ]
+        """
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            params = {
+                "symbol": symbol,
+                "interval": interval,
+                "apikey": self.api_key,
+                "outputsize": outputsize,
+                "format": "JSON"
+            }
+            
+            if start_date:
+                params["start_date"] = start_date
+            if end_date:
+                params["end_date"] = end_date
+            
+            response = await client.get(f"{self.base_url}/time_series", params=params)
+            data = response.json()
+            
+            if "values" in data:
+                return data["values"]
+            
+            raise ValueError(f"Could not fetch historical prices for {symbol}: {data}")
 
 
 async def update_stock_list():

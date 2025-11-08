@@ -1,4 +1,5 @@
 # backend/models.py - UPDATED ASSET MODEL
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table, Float, Enum, Date, Index
 from sqlalchemy import Column, Index, Integer, String, DateTime, ForeignKey, Table, Float, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -68,7 +69,6 @@ class Permission(Base):
                          back_populates="permissions")
 
 
-# Asset types enum
 class AssetType(str, enum.Enum):
     STOCKS = "stocks"
     BONDS = "bonds"
@@ -78,46 +78,72 @@ class AssetType(str, enum.Enum):
     OTHER = "other"
 
 
-# Asset model
 class Asset(Base):
     __tablename__ = "assets"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)  # e.g., "Apple Inc"
-    symbol = Column(String, nullable=True)  # NEW: e.g., "AAPL" or "bitcoin"
+    name = Column(String, nullable=False)
+    symbol = Column(String, nullable=True, index=True)
+    # ← NEW: Store exchange with asset
+    mic_code = Column(String, nullable=True, index=True)
+    exchange = Column(String, nullable=True, index=True)
     type = Column(Enum(AssetType), nullable=False)
     purchase_price = Column(Float, nullable=False)
-    quantity = Column(Float, nullable=True)  # NEW: Number of shares/coins
-    auto_update = Column(Integer, default=1)  # NEW: 1=auto-update, 0=manual
+    purchase_date = Column(DateTime, nullable=True)
+    quantity = Column(Float, nullable=True)
+    auto_update = Column(Integer, default=1)
     user_id = Column(Integer, ForeignKey(
         'users.id', ondelete='CASCADE'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow,
                         onupdate=datetime.utcnow)
 
-    # Relationships
     owner = relationship("User", back_populates="assets")
 
-# List of available stocks and their information
+    __table_args__ = (
+        Index('idx_symbol_exchange', 'symbol', 'exchange'),
+    )
 
 
+# Stock list
 class Stock(Base):
     __tablename__ = "stocks"
 
     symbol = Column(String, primary_key=True)
     exchange = Column(String, primary_key=True)
-    figi_code = Column(String, primary_key=True)
+    mic_code = Column(String, primary_key=True)
     name = Column(String, nullable=False)
-    country = Column(String, nullable=True)
+    country = Column(String, nullable=True, index=True)
     currency = Column(String, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow,
                         onupdate=datetime.utcnow)
-    
+
     __table_args__ = (
-        # For filtering by country then symbol
-        Index('idx_stock_country_symbol', 'country', 'symbol'),
-        # For filtering by exchange then country
-        Index('idx_stock_exchange_country', 'exchange', 'country'),
-        Index('idx_stock_symbol_exchange', 'symbol',
-              'exchange'),  # Composite unique lookup
+        Index('idx_country_exchange', 'country', 'exchange'),
+    )
+
+
+class StockPrice(Base):
+    __tablename__ = "stock_prices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String, nullable=False, index=True)
+    exchange = Column(String, nullable=False, index=True)
+    mic_code = Column(String, nullable=False, index=True)
+    datetime = Column(DateTime, nullable=False, index=True)
+    interval = Column(String, nullable=False, index=True)  # "1hour", "1day"
+
+    open = Column(Float, nullable=False)
+    high = Column(Float, nullable=False)
+    low = Column(Float, nullable=False)
+    close = Column(Float, nullable=False)
+    volume = Column(Integer, nullable=True)
+
+    __table_args__ = (
+        Index('idx_unique_price', 'symbol', 'exchange',
+              'datetime', 'interval', unique=True),
+        Index('idx_symbol_interval_datetime',
+              'symbol', 'interval', 'datetime'),
+        Index('idx_interval_datetime', 'interval',
+              'datetime'),  # For cleanup queries
     )
