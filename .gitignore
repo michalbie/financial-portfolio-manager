@@ -11,6 +11,7 @@ __pycache__/
 *.sqlite3
 *.db
 *.pid
+*stocks_list.json
 
 # ===============================
 # 🔹 Node / Next.js

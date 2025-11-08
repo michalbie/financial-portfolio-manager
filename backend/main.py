@@ -8,8 +8,9 @@ import os
 
 from auth import router as auth_router
 from admin import router as admin_router
-from assets import router as assets_router  # NEW
-from database import init_db, seed_default_data
+from assets.assets import router as assets_router  # NEW
+from database.database import init_db, seed_default_data
+from scheduler.scheduler import initialize_scheduler
 
 app = FastAPI()
 
@@ -17,10 +18,11 @@ app = FastAPI()
 
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     print("🚀 Initializing database...")
     init_db()
     seed_default_data()
+    await initialize_scheduler()
     print("✅ Database ready!")
 
 
@@ -42,7 +44,7 @@ app.add_middleware(
 # Routers
 app.include_router(auth_router)
 app.include_router(admin_router)
-app.include_router(assets_router) 
+app.include_router(assets_router)
 
 
 @app.get("/")

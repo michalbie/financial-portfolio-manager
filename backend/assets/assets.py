@@ -5,8 +5,8 @@ from typing import List
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from database import get_db
-from models import Asset, AssetType, User
+from database.database import get_db
+from database.models import Asset, AssetType, User
 from auth import get_current_user
 
 router = APIRouter(prefix="/assets", tags=["assets"])

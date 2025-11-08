@@ -9,8 +9,8 @@ from typing import List
 from sqlalchemy.orm import Session
 import os
 
-from database import get_db
-from models import User, Role
+from database.database import get_db
+from database.models import User, Role
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

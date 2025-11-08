@@ -1,7 +1,7 @@
 # backend/make_admin.py
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import User, Role
+from database.models import User, Role
 
 DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/mydb"
 engine = create_engine(DATABASE_URL)

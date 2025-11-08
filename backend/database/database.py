@@ -1,7 +1,7 @@
 # backend/database.py
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Base
+from database.models import Base
 import os
 
 DATABASE_URL = os.getenv(
@@ -27,7 +27,7 @@ def init_db():
 
 def seed_default_data():
     """Seed default roles and permissions"""
-    from models import Role, Permission
+    from database.models import Role, Permission
 
     db = SessionLocal()
 
