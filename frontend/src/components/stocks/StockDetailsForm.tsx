@@ -19,11 +19,13 @@ interface StockDetailsFormProps {
 	purchasePrice: number;
 	quantity: number;
 	purchaseDate: string;
+	deductFromSavings: boolean;
 	onNameChange: (value: string) => void;
 	onSymbolChange: (symbol: string, name: string, micCode: string) => void;
 	onPurchasePriceChange: (value: number) => void;
 	onQuantityChange: (value: number) => void;
 	onPurchaseDateChange: (value: string) => void;
+	onDeductFromSavingsChange: (value: boolean) => void;
 }
 
 const inputStyles = {
@@ -51,11 +53,13 @@ export const StockDetailsForm: React.FC<StockDetailsFormProps> = ({
 	purchasePrice,
 	quantity,
 	purchaseDate,
+	deductFromSavings,
 	onNameChange,
 	onSymbolChange,
 	onPurchasePriceChange,
 	onQuantityChange,
 	onPurchaseDateChange,
+	onDeductFromSavingsChange,
 }) => {
 	const [stockSearchQuery, setStockSearchQuery] = useState("");
 	const [stockOptions, setStockOptions] = useState<StockOption[]>([]);
@@ -159,6 +163,8 @@ export const StockDetailsForm: React.FC<StockDetailsFormProps> = ({
 				onPurchasePriceChange={onPurchasePriceChange}
 				onQuantityChange={onQuantityChange}
 				onPurchaseDateChange={onPurchaseDateChange}
+				deductFromSavings={deductFromSavings}
+				onDeductFromSavingsChange={onDeductFromSavingsChange}
 			/>
 		</Stack>
 	);

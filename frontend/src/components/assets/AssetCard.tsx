@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, Stack, Box, Group, ActionIcon, Menu, Text, Title, Divider } from "@mantine/core";
-import { IconDotsVertical, IconEdit, IconTrash } from "@tabler/icons-react";
+import { IconCash, IconDotsVertical, IconEdit, IconTrash } from "@tabler/icons-react";
 import type { Asset } from "../../api/assets";
 import getGrowthPercent from "../../common/getGrowthPercent";
+import ClosePositionModal from "./ClosePositionModal";
 
 interface AssetCardProps {
 	asset: Asset;
@@ -13,9 +14,11 @@ interface AssetCardProps {
 	};
 	onEdit: (asset: Asset) => void;
 	onDelete: (id: number) => void;
+	onClosePosition: (id: number, transferToSavings: boolean) => void;
 }
 
-export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, onDelete }) => {
+export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, onDelete, onClosePosition }) => {
+	const [closePositionModalOpened, setClosePositionModalOpened] = useState(false);
 	const Icon = assetType.icon;
 	const totalValue = (asset.current_price || asset.purchase_price) * (asset.quantity || 1);
 	const growthChange: string = getGrowthPercent(asset.purchase_price, asset.current_price || asset.purchase_price);
@@ -62,11 +65,30 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, 
 							<Menu.Item leftSection={<IconEdit size={16} />} onClick={() => onEdit(asset)} style={{ color: "white" }}>
 								Edit
 							</Menu.Item>
+							{asset.type === "stocks" && (
+								<>
+									<Menu.Item
+										leftSection={<IconCash size={16} />}
+										onClick={() => setClosePositionModalOpened(true)}
+										style={{ color: "white" }}
+									>
+										Close position
+									</Menu.Item>
+								</>
+							)}
 							<Menu.Item leftSection={<IconTrash size={16} />} color="red" onClick={() => onDelete(asset.id)}>
 								Delete
 							</Menu.Item>
 						</Menu.Dropdown>
 					</Menu>
+					<ClosePositionModal
+						opened={closePositionModalOpened}
+						setOpened={(opened) => {
+							setClosePositionModalOpened(opened);
+						}}
+						onClosePosition={onClosePosition}
+						asset={asset}
+					/>
 				</Group>
 
 				<Stack gap={4} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>

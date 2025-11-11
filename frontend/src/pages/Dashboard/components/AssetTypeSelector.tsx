@@ -14,10 +14,11 @@ export const ASSET_TYPES = [
 
 interface AssetTypeSelectorProps {
 	selectedType: AssetType;
+	hasSavingsAsset: boolean;
 	onSelect: (type: AssetType) => void;
 }
 
-export const AssetTypeSelector: React.FC<AssetTypeSelectorProps> = ({ selectedType, onSelect }) => {
+export const AssetTypeSelector: React.FC<AssetTypeSelectorProps> = ({ selectedType, onSelect, hasSavingsAsset }) => {
 	return (
 		<Stack gap="md" mt="xl">
 			<Text size="sm" c="dimmed">

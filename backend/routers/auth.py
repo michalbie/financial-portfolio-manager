@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 import os
 
 from database.database import get_db
-from database.models import User, Role
+from database.models import User, Role, UserSetting
+from routers.user_settings import UserSettingsResponse
+from dependencies.auth_dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -52,14 +54,6 @@ def create_access_token(data: dict, expires_minutes: int = APP_JWT_EXPIRE_MIN):
     return jwt.encode(to_encode, APP_SECRET_KEY, algorithm=APP_JWT_ALG)
 
 
-def verify_access_token(token: str):
-    try:
-        payload = jwt.decode(token, APP_SECRET_KEY, algorithms=[APP_JWT_ALG])
-        return payload
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-
 # -----------------------
 # Database helpers
 # -----------------------
@@ -79,6 +73,18 @@ def get_or_create_user(db: Session, email: str, name: str) -> User:
             user.roles.append(default_role)
 
         db.add(user)
+        db.flush()
+
+        settings = UserSetting(
+            user_id=user.id,
+            currency="USD",
+            salary_month=None,
+            primary_saving_asset_id=None,
+        )
+        db.add(settings)
+
+        user.settings = settings
+
         db.commit()
         db.refresh(user)
 
@@ -102,23 +108,6 @@ def get_user_roles(user: User) -> List[str]:
 # -----------------------
 # Role-based access control
 # -----------------------
-
-
-def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)):
-    """Get current user from JWT token"""
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="Missing bearer token")
-    token = authorization.split(" ", 1)[1]
-    payload = verify_access_token(token)
-
-    # Get user from database
-    email = payload.get("sub")
-    user = db.query(User).filter(User.email == email).first()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return user
 
 
 def require_permission(permission: str):
@@ -196,18 +185,26 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
 
 class MeOut(BaseModel):
+    id: int
     email: str
     name: str
     roles: List[str]
     permissions: List[str]
+    user_settings: UserSettingsResponse
+
+    class Config:
+        from_attributes = True
+        arbitrary_types_allowed = True
 
 
 @router.get("/me", response_model=MeOut)
 def get_me(user: User = Depends(get_current_user)):
     """Get current user info"""
     return MeOut(
+        id=user.id,
         email=user.email,
         name=user.name,
         roles=get_user_roles(user),
-        permissions=get_user_permissions(user)
+        permissions=get_user_permissions(user),
+        user_settings=user.settings
     )

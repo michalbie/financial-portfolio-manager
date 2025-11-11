@@ -4,7 +4,17 @@ import { Container, Title, Text, Button, Stack, Box, Group, Grid, Card, Modal, S
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
 import { IconPlus, IconChartPie } from "@tabler/icons-react";
-import { getMyAssets, createAsset, updateAsset, deleteAsset, AssetType, type Asset, type AssetCreate } from "../../api/assets";
+import {
+	getMyAssets,
+	createAsset,
+	updateAsset,
+	deleteAsset,
+	AssetType,
+	type Asset,
+	type AssetCreate,
+	closeAsset,
+	AssetStatus,
+} from "../../api/assets";
 import { DashboardHeader } from "./components/DashboardHeader";
 import { PortfolioSummary } from "./components/PortfolioSummary";
 import { AssetTypeSelector, ASSET_TYPES } from "./components/AssetTypeSelector";
@@ -15,12 +25,13 @@ import { CommonAssetFields } from "../../components/common/CommonAssetFields";
 import { SavingsDetailsForm } from "../../components/savings/SavingsDetailsForm";
 
 const Dashboard: React.FC = () => {
-	const { user, logout } = useAuth();
+	const { user } = useAuth();
 	const [assets, setAssets] = useState<Asset[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [modalOpened, setModalOpened] = useState(false);
 	const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
 	const [activeStep, setActiveStep] = useState(0);
+	const hasPrimarySavingsAccount = user?.user_settings?.primary_saving_asset_id;
 
 	const [formData, setFormData] = useState<AssetCreate>({
 		name: "",
@@ -30,6 +41,7 @@ const Dashboard: React.FC = () => {
 		purchase_price: 0,
 		purchase_date: new Date().toISOString(),
 		quantity: 1,
+		deduct_from_savings: hasPrimarySavingsAccount ? true : false,
 	});
 
 	useEffect(() => {
@@ -69,6 +81,15 @@ const Dashboard: React.FC = () => {
 		}
 	};
 
+	const onClosePosition = async (id: number, transferToSavings: boolean) => {
+		if (window.confirm("Are you sure you want to close this position?")) {
+			const result = await closeAsset(id, transferToSavings);
+			if (result) {
+				await loadAssets();
+			}
+		}
+	};
+
 	const openEditModal = (asset: Asset) => {
 		setEditingAsset(asset);
 		setFormData({
@@ -79,6 +100,7 @@ const Dashboard: React.FC = () => {
 			purchase_price: asset.purchase_price,
 			purchase_date: asset.purchase_date,
 			quantity: asset.quantity,
+			deduct_from_savings: hasPrimarySavingsAccount ? true : false,
 		});
 		setActiveStep(1);
 		setModalOpened(true);
@@ -93,6 +115,7 @@ const Dashboard: React.FC = () => {
 			purchase_price: 0,
 			purchase_date: new Date().toISOString(),
 			quantity: 1,
+			deduct_from_savings: hasPrimarySavingsAccount ? true : false,
 		});
 		setActiveStep(0);
 	};
@@ -117,11 +140,13 @@ const Dashboard: React.FC = () => {
 						purchasePrice={formData.purchase_price}
 						quantity={formData.quantity || 1}
 						purchaseDate={formData.purchase_date || new Date().toISOString()}
+						deductFromSavings={formData.deduct_from_savings}
 						onNameChange={(value) => setFormData({ ...formData, name: value })}
 						onSymbolChange={(symbol, name, micCode) => setFormData({ ...formData, symbol, name, mic_code: micCode })}
 						onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
 						onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
 						onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
+						onDeductFromSavingsChange={(value) => setFormData({ ...formData, deduct_from_savings: value })}
 					/>
 				);
 
@@ -132,16 +157,19 @@ const Dashboard: React.FC = () => {
 						purchasePrice={formData.purchase_price}
 						quantity={formData.quantity || 1}
 						purchaseDate={formData.purchase_date || new Date().toISOString()}
+						deductFromSavings={formData.deduct_from_savings}
 						onNameChange={(value) => setFormData({ ...formData, name: value })}
 						onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
 						onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
 						onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
+						onDeductFromSavingsChange={(value) => setFormData({ ...formData, deduct_from_savings: value })}
 					/>
 				);
 
 			case AssetType.SAVINGS:
 				return (
 					<SavingsDetailsForm
+						name={formData.name}
 						purchasePrice={formData.purchase_price}
 						onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
 						onNameChange={(value) => setFormData({ ...formData, name: value })}
@@ -173,6 +201,8 @@ const Dashboard: React.FC = () => {
 							onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
 							onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
 							onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
+							deductFromSavings={formData.deduct_from_savings}
+							onDeductFromSavingsChange={(value: boolean) => setFormData({ ...formData, deduct_from_savings: value })}
 						/>
 					</Stack>
 				);
@@ -207,7 +237,7 @@ const Dashboard: React.FC = () => {
 			/>
 
 			<Container size="xl" style={{ position: "relative", zIndex: 1 }} py={40}>
-				<DashboardHeader userName={user?.name || "Loading..."} onLogout={logout} />
+				<DashboardHeader assets={assets} />
 
 				<PortfolioSummary assets={assets} />
 
@@ -257,19 +287,22 @@ const Dashboard: React.FC = () => {
 						</Card>
 					) : (
 						<Grid gutter="lg">
-							{assets.map((asset) => {
-								const assetType = ASSET_TYPES.find((t) => t.value === asset.type)!;
-								return (
-									<Grid.Col key={asset.id} span={{ base: 12, sm: 6, md: 4 }}>
-										<AssetCard
-											asset={asset}
-											assetType={assetType}
-											onEdit={openEditModal}
-											onDelete={handleDeleteAsset}
-										/>
-									</Grid.Col>
-								);
-							})}
+							{assets
+								.filter((asset) => asset.status === AssetStatus.ACTIVE)
+								.map((asset) => {
+									const assetType = ASSET_TYPES.find((t) => t.value === asset.type)!;
+									return (
+										<Grid.Col key={asset.id} span={{ base: 12, sm: 6, md: 4 }}>
+											<AssetCard
+												asset={asset}
+												assetType={assetType}
+												onEdit={openEditModal}
+												onDelete={handleDeleteAsset}
+												onClosePosition={onClosePosition}
+											/>
+										</Grid.Col>
+									);
+								})}
 						</Grid>
 					)}
 				</Stack>
@@ -291,7 +324,11 @@ const Dashboard: React.FC = () => {
 			>
 				<Stepper active={activeStep} onStepClick={setActiveStep} color="blue" mt={"1rem"}>
 					<Stepper.Step label="Asset Type" description="Choose asset category">
-						<AssetTypeSelector selectedType={formData.type} onSelect={(type) => setFormData({ ...formData, type })} />
+						<AssetTypeSelector
+							selectedType={formData.type}
+							onSelect={(type) => setFormData({ ...formData, type })}
+							hasSavingsAsset={assets.some((asset) => asset.type === "savings")}
+						/>
 						<Group justify="flex-end" mt="xl">
 							<Button onClick={nextStep} style={{ background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)" }}>
 								Next Step

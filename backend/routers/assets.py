@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
 from database.database import get_db
-from database.models import Asset, AssetType, StockPrice, User
+from database.models import Asset, AssetStatus, AssetType, StockPrice, User
 from routers.auth import get_current_user
 from assets.stocks.price_manager import backfill_stock_prices
 from assets.stocks.price_manager import get_stock_price_history
@@ -48,6 +48,14 @@ class AssetResponse(BaseModel):
     user_id: int
     created_at: datetime
     updated_at: datetime
+    status: AssetStatus
+
+    class Config:
+        from_attributes = True
+
+
+class AssetCloseRequest(BaseModel):
+    transfer_to_savings: bool = True
 
     class Config:
         from_attributes = True
@@ -68,6 +76,10 @@ def get_my_assets(
                 StockPrice.mic_code == asset.mic_code
             ).order_by(StockPrice.datetime.desc()).first()
             asset.current_price = latest_price.close if latest_price else None
+
+            db.commit()
+            db.refresh(asset)
+
     return assets
 
 
@@ -78,6 +90,24 @@ async def create_asset(
     db: Session = Depends(get_db)
 ):
     """Create a new asset"""
+
+    # If asset_data.deduct_from_savings is True, deduct amount from user's savings asset
+    if asset_data.type != AssetType.SAVINGS:
+        primary_saving_asset_id = user.settings.primary_saving_asset_id
+        if primary_saving_asset_id:
+            savings_asset = db.query(Asset).filter(
+                Asset.id == primary_saving_asset_id,
+                Asset.user_id == user.id
+            ).first()
+            if savings_asset:
+                total_cost = asset_data.purchase_price * \
+                    (asset_data.quantity or 1)
+                if savings_asset.purchase_price >= total_cost:
+                    savings_asset.purchase_price -= total_cost
+                else:
+                    raise HTTPException(
+                        status_code=400, detail="Insufficient funds in savings asset")
+    db.flush()
 
     # Validate stock symbol and MIC code for stocks
     if asset_data.type == AssetType.STOCKS:
@@ -172,6 +202,43 @@ def delete_asset(
     db.commit()
 
     return {"message": "Asset deleted successfully"}
+
+
+@router.post("/{asset_id}/close")
+def close_asset(
+    asset_id: int,
+    request: AssetCloseRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Close an asset"""
+    asset = db.query(Asset).filter(
+        Asset.id == asset_id,
+        Asset.user_id == user.id
+    ).first()
+
+    # Based on request.transfer_to_savings, implement logic to transfer value to savings
+    if request.transfer_to_savings:
+        primary_saving_asset_id = user.settings.primary_saving_asset_id
+        if primary_saving_asset_id:
+            savings_asset = db.query(Asset).filter(
+                Asset.id == primary_saving_asset_id,
+                Asset.user_id == user.id
+            ).first()
+            if savings_asset:
+                savings_asset.purchase_price += (asset.current_price or asset.purchase_price) * \
+                    (asset.quantity or 1)
+
+    db.flush()
+
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    asset.status = AssetStatus.CLOSED
+    db.refresh(asset)
+    db.commit()
+
+    return {"message": "Asset closed successfully"}
 
 
 @router.get("/stocks/search/{symbol}")

@@ -36,9 +36,27 @@ class User(Base):
                         onupdate=datetime.utcnow)
 
     # Relationships
+    settings = relationship("UserSetting", back_populates="users", uselist=False,
+                            cascade="all, delete-orphan",
+                            single_parent=True,)
     roles = relationship("Role", secondary=user_roles, back_populates="users")
     assets = relationship("Asset", back_populates="owner",
                           cascade="all, delete-orphan")
+
+
+class UserSetting(Base):
+    __tablename__ = "user_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey(
+        'users.id', ondelete='CASCADE'), unique=True, nullable=False)
+    currency = Column(String, default="USD")
+    primary_saving_asset_id = Column(Integer, ForeignKey(
+        'assets.id', ondelete='SET NULL'), nullable=True)
+    salary_per_month = Column(Integer, nullable=True)
+    salary_day = Column(Integer, nullable=True, default=1)
+
+    users = relationship("User", back_populates="settings")
 
 
 class Role(Base):
@@ -77,6 +95,11 @@ class AssetType(str, enum.Enum):
     OTHER = "other"
 
 
+class AssetStatus(str, enum.Enum):
+    ACTIVE = "active"
+    CLOSED = "closed"
+
+
 class Asset(Base):
     __tablename__ = "assets"
 
@@ -87,11 +110,13 @@ class Asset(Base):
     mic_code = Column(String, nullable=True, index=True)
     type = Column(Enum(AssetType), nullable=False)
     purchase_price = Column(Float, nullable=False)
+    current_price = Column(Float, nullable=True)
     purchase_date = Column(DateTime, nullable=True)
     quantity = Column(Float, nullable=True)
     auto_update = Column(Integer, default=1)
     user_id = Column(Integer, ForeignKey(
         'users.id', ondelete='CASCADE'), nullable=False)
+    status = Column(Enum(AssetStatus), default=AssetStatus.ACTIVE)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow,
                         onupdate=datetime.utcnow)
@@ -127,10 +152,11 @@ class StockPrice(Base):
     __tablename__ = "stock_prices"
 
     id = Column(Integer, primary_key=True, index=True)
-    symbol = Column(String, nullable=False, index=True)
-    mic_code = Column(String, nullable=False, index=True)
-    datetime = Column(DateTime, nullable=False, index=True)
-    interval = Column(String, nullable=False, index=True)  # "1hour", "1day"
+    symbol = Column(String, primary_key=True, nullable=False, index=True)
+    mic_code = Column(String, primary_key=True, nullable=False, index=True)
+    datetime = Column(DateTime, primary_key=True, nullable=False, index=True)
+    interval = Column(String, primary_key=True, nullable=False,
+                      index=True)  # "1hour", "1day"
 
     open = Column(Float, nullable=False)
     high = Column(Float, nullable=False)
@@ -145,4 +171,21 @@ class StockPrice(Base):
               'symbol', 'interval', 'datetime'),
         Index('idx_interval_datetime', 'interval',
               'datetime'),  # For cleanup queries
+    )
+
+
+class Statistic(Base):
+    __tablename__ = "statistics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey(
+        'users.id', ondelete='CASCADE'), nullable=False)
+    date = Column(Date, nullable=False, index=True)
+    total_portfolio_value = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_user_date', 'user_id', 'date', unique=True),
     )

@@ -7,10 +7,12 @@ interface BondsDetailsFormProps {
 	purchasePrice: number;
 	quantity: number;
 	purchaseDate: string;
+	deductFromSavings: boolean;
 	onNameChange: (value: string) => void;
 	onPurchasePriceChange: (value: number) => void;
 	onQuantityChange: (value: number) => void;
 	onPurchaseDateChange: (value: string) => void;
+	onDeductFromSavingsChange: (value: boolean) => void;
 }
 
 const inputStyles = {
@@ -27,10 +29,12 @@ export const BondsDetailsForm: React.FC<BondsDetailsFormProps> = ({
 	purchasePrice,
 	quantity,
 	purchaseDate,
+	deductFromSavings,
 	onNameChange,
 	onPurchasePriceChange,
 	onQuantityChange,
 	onPurchaseDateChange,
+	onDeductFromSavingsChange,
 }) => {
 	return (
 		<Stack gap="md" mt="xl">
@@ -50,6 +54,8 @@ export const BondsDetailsForm: React.FC<BondsDetailsFormProps> = ({
 				onPurchasePriceChange={onPurchasePriceChange}
 				onQuantityChange={onQuantityChange}
 				onPurchaseDateChange={onPurchaseDateChange}
+				deductFromSavings={deductFromSavings}
+				onDeductFromSavingsChange={onDeductFromSavingsChange}
 			/>
 		</Stack>
 	);

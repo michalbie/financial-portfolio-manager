@@ -169,6 +169,9 @@ async def fetch_latest_prices_for_tracked_stocks():
 
     provider = TwelveDataProvider()
 
+    print(one_hour_ago.strftime("%Y-%m-%d %H:%M:%S"),
+          now.strftime("%Y-%m-%d %H:%M:%S"))
+
     for symbol, mic_code in stock_pairs:
         try:
             # Fetch latest hourly price using date range

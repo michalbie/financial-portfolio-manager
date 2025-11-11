@@ -1,14 +1,17 @@
-import React from "react";
-import { Stack, NumberInput } from "@mantine/core";
+import React, { useState } from "react";
+import { Stack, NumberInput, Checkbox, Tooltip } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
+import { useAuth } from "../../context/AuthContext";
 
 interface CommonAssetFieldsProps {
 	purchasePrice: number;
 	quantity: number;
 	purchaseDate: string;
+	deductFromSavings: boolean;
 	onPurchasePriceChange: (value: number) => void;
 	onQuantityChange: (value: number) => void;
 	onPurchaseDateChange: (value: string) => void;
+	onDeductFromSavingsChange: (value: boolean) => void;
 }
 
 const inputStyles = {
@@ -24,10 +27,16 @@ export const CommonAssetFields: React.FC<CommonAssetFieldsProps> = ({
 	purchasePrice,
 	quantity,
 	purchaseDate,
+	deductFromSavings,
 	onPurchasePriceChange,
 	onQuantityChange,
 	onPurchaseDateChange,
+	onDeductFromSavingsChange,
 }) => {
+	const { user } = useAuth();
+	const [transferToSavings, setTransferToSavings] = useState<boolean>(true);
+	const hasPrimarySavingsAccount = user?.user_settings?.primary_saving_asset_id;
+
 	return (
 		<Stack gap="md">
 			<NumberInput
@@ -62,6 +71,20 @@ export const CommonAssetFields: React.FC<CommonAssetFieldsProps> = ({
 				}}
 				styles={inputStyles}
 			/>
+
+			<Tooltip
+				multiline
+				label="You must have a primary savings account to deduct funds. Create one in assets and set it as primary in the settings."
+				disabled={hasPrimarySavingsAccount !== null && hasPrimarySavingsAccount !== undefined}
+				position="top"
+			>
+				<Checkbox
+					label="Deduct funds from primary savings account upon purchase"
+					disabled={!hasPrimarySavingsAccount}
+					checked={deductFromSavings}
+					onChange={(e) => onDeductFromSavingsChange(e.currentTarget.checked)}
+				/>
+			</Tooltip>
 		</Stack>
 	);
 };

@@ -11,6 +11,11 @@ export enum AssetType {
 	OTHER = "other",
 }
 
+export enum AssetStatus {
+	ACTIVE = "active",
+	CLOSED = "closed",
+}
+
 export interface Asset {
 	id: number;
 	name: string;
@@ -24,6 +29,7 @@ export interface Asset {
 	user_id: number;
 	created_at: string;
 	updated_at: string;
+	status: AssetStatus;
 }
 
 export interface AssetCreate {
@@ -34,6 +40,7 @@ export interface AssetCreate {
 	purchase_price: number;
 	purchase_date?: string;
 	quantity?: number;
+	deduct_from_savings: boolean;
 }
 
 export interface AssetUpdate {
@@ -112,6 +119,15 @@ export function deleteAsset(assetId: number) {
 	return makeSafeRequest<{ message: string }>(`assets/${assetId}`, "DELETE", {
 		onSuccessMessage: "Asset deleted successfully!",
 		onErrorMessage: "Failed to delete asset.",
+	});
+}
+
+// Close asset
+export function closeAsset(assetId: number, transferToSavings: boolean) {
+	return makeSafeRequest<{ message: string }>(`assets/${assetId}/close`, "POST", {
+		payload: { transferToSavings },
+		onSuccessMessage: "Stock position closed successfully!",
+		onErrorMessage: "Failed to close stock position.",
 	});
 }
 
