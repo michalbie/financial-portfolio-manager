@@ -12,7 +12,7 @@ from routers.auth import get_current_user
 from assets.stocks.price_manager import backfill_stock_prices
 from assets.stocks.price_manager import get_stock_price_history
 
-router = APIRouter(prefix="/stats", tags=["stats"])
+router = APIRouter(prefix="/statistics", tags=["statistics"])
 
 
 class AssetCreate(BaseModel):
@@ -48,7 +48,7 @@ def get_my_stats(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get portfolio history stats"""
+    """Get portfolio history statistics"""
     history = db.query(Statistic).filter(Statistic.user_id == user.id).all()
     return history
 
@@ -127,7 +127,7 @@ def get_portfolio_summary(
                       for asset in assets)
     total_cost = sum(asset.purchase_price * (asset.quantity or 1)
                      for asset in assets)
-    total_gain_loss = 0  # TODO: Calculate based on current prices
+    total_gain_loss = 0
 
     # Group by type
     by_type = {}

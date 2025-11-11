@@ -34,7 +34,6 @@ export const CommonAssetFields: React.FC<CommonAssetFieldsProps> = ({
 	onDeductFromSavingsChange,
 }) => {
 	const { user } = useAuth();
-	const [transferToSavings, setTransferToSavings] = useState<boolean>(true);
 	const hasPrimarySavingsAccount = user?.user_settings?.primary_saving_asset_id;
 
 	return (

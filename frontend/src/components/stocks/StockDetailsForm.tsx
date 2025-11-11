@@ -21,7 +21,7 @@ interface StockDetailsFormProps {
 	purchaseDate: string;
 	deductFromSavings: boolean;
 	onNameChange: (value: string) => void;
-	onSymbolChange: (symbol: string, name: string, micCode: string) => void;
+	onSymbolChange: (symbol: string, name: string, micCode: string, exchange: string) => void;
 	onPurchasePriceChange: (value: number) => void;
 	onQuantityChange: (value: number) => void;
 	onPurchaseDateChange: (value: string) => void;
@@ -100,7 +100,7 @@ export const StockDetailsForm: React.FC<StockDetailsFormProps> = ({
 		const stock = stockOptions.find((s) => s.symbol === selectedSymbol);
 		if (stock) {
 			onNameChange(stock.name);
-			onSymbolChange(selectedSymbol, stock.name, "");
+			onSymbolChange(selectedSymbol, stock.name, "", "");
 			setSelectedStock(null);
 		}
 	};
@@ -109,7 +109,7 @@ export const StockDetailsForm: React.FC<StockDetailsFormProps> = ({
 		const stock = stockOptions.find((s) => s.symbol === symbol && s.exchange === exchange);
 		if (stock) {
 			setSelectedStock(stock);
-			onSymbolChange(symbol, stock.name, stock.mic_code);
+			onSymbolChange(symbol, stock.name, stock.mic_code, stock.exchange);
 		}
 	};
 

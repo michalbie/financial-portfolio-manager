@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { Container, Title, Text, Button, Stack, Box, Group, Grid, Card, Modal, Stepper, Loader, TextInput } from "@mantine/core";
 import "@mantine/core/styles.css";
@@ -40,6 +40,7 @@ const Dashboard: React.FC = () => {
 		mic_code: "",
 		purchase_price: 0,
 		purchase_date: new Date().toISOString(),
+		exchange: undefined,
 		quantity: 1,
 		deduct_from_savings: hasPrimarySavingsAccount ? true : false,
 	});
@@ -99,6 +100,7 @@ const Dashboard: React.FC = () => {
 			mic_code: asset.mic_code,
 			purchase_price: asset.purchase_price,
 			purchase_date: asset.purchase_date,
+			exchange: asset.exchange,
 			quantity: asset.quantity,
 			deduct_from_savings: hasPrimarySavingsAccount ? true : false,
 		});
@@ -114,6 +116,7 @@ const Dashboard: React.FC = () => {
 			mic_code: "",
 			purchase_price: 0,
 			purchase_date: new Date().toISOString(),
+			exchange: undefined,
 			quantity: 1,
 			deduct_from_savings: hasPrimarySavingsAccount ? true : false,
 		});
@@ -129,7 +132,7 @@ const Dashboard: React.FC = () => {
 	const nextStep = () => setActiveStep((current) => (current < 1 ? current + 1 : current));
 	const prevStep = () => setActiveStep((current) => (current > 0 ? current - 1 : current));
 
-	const renderDetailsForm = () => {
+	const renderDetailsForm = useCallback(() => {
 		switch (formData.type) {
 			case AssetType.STOCKS:
 				return (
@@ -142,7 +145,9 @@ const Dashboard: React.FC = () => {
 						purchaseDate={formData.purchase_date || new Date().toISOString()}
 						deductFromSavings={formData.deduct_from_savings}
 						onNameChange={(value) => setFormData({ ...formData, name: value })}
-						onSymbolChange={(symbol, name, micCode) => setFormData({ ...formData, symbol, name, mic_code: micCode })}
+						onSymbolChange={(symbol, name, micCode, exchange) =>
+							setFormData({ ...formData, symbol, name, mic_code: micCode, exchange })
+						}
 						onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
 						onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
 						onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
@@ -207,7 +212,7 @@ const Dashboard: React.FC = () => {
 					</Stack>
 				);
 		}
-	};
+	}, [formData]);
 
 	if (loading) {
 		return (

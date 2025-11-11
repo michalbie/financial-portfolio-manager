@@ -25,6 +25,7 @@ export interface Asset {
 	purchase_price: number;
 	current_price?: number;
 	purchase_date?: string;
+	exchange?: string;
 	quantity?: number;
 	user_id: number;
 	created_at: string;
@@ -40,6 +41,7 @@ export interface AssetCreate {
 	purchase_price: number;
 	purchase_date?: string;
 	quantity?: number;
+	exchange?: string;
 	deduct_from_savings: boolean;
 }
 
@@ -51,6 +53,7 @@ export interface AssetUpdate {
 	purchase_price?: number;
 	purchase_date?: string;
 	quantity?: number;
+	exchange?: string;
 }
 
 export interface StockSearchResult {
