@@ -7,10 +7,12 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
 from database.database import get_db
-from database.models import Asset, AssetStatus, AssetType, StockPrice, User
+from database.models import Asset, AssetStatus, AssetType, AssetPrice, User
 from routers.auth import get_current_user
-from assets.stocks.price_manager import backfill_stock_prices
-from assets.stocks.price_manager import get_stock_price_history
+from assets.asset_price_historian import backfill_asset_prices
+from assets.asset_price_historian import get_asset_price_history
+from assets.assets_updater import update_user_assets_prices
+from statistics.portfolio_value_updater import update_user_portfolio_value
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -24,6 +26,7 @@ class AssetCreate(BaseModel):
     purchase_date: Optional[datetime] = None
     exchange: Optional[str] = None
     quantity: Optional[float] = 1.0
+    deduct_from_savings: bool = False
 
 
 class AssetUpdate(BaseModel):
@@ -64,24 +67,13 @@ class AssetCloseRequest(BaseModel):
 
 
 @router.get("/", response_model=List[AssetResponse])
-def get_my_assets(
+async def get_my_assets(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get all assets for current user"""
-    assets = db.query(Asset).filter(Asset.user_id == user.id).all()
-    # Attach current_price to each asset (if stock) from latest stock prices
-    for asset in assets:
-        if asset.type == AssetType.STOCKS and asset.symbol and asset.mic_code:
-            latest_price = db.query(StockPrice).filter(
-                StockPrice.symbol == asset.symbol,
-                StockPrice.mic_code == asset.mic_code
-            ).order_by(StockPrice.datetime.desc()).first()
-            asset.current_price = latest_price.close if latest_price else None
-
-            db.commit()
-            db.refresh(asset)
-
+    assets = await update_user_assets_prices(user.id)
+    await update_user_portfolio_value(user.id)
     return assets
 
 
@@ -94,7 +86,7 @@ async def create_asset(
     """Create a new asset"""
 
     # If asset_data.deduct_from_savings is True, deduct amount from user's savings asset
-    if asset_data.type != AssetType.SAVINGS:
+    if asset_data.type != AssetType.SAVINGS and asset_data.deduct_from_savings:
         primary_saving_asset_id = user.settings.primary_saving_asset_id
         if primary_saving_asset_id:
             savings_asset = db.query(Asset).filter(
@@ -140,7 +132,7 @@ async def create_asset(
     # If it's a stock, backfill historical prices
     if asset.type == AssetType.STOCKS and asset.symbol and asset.mic_code and asset.purchase_date:
         try:
-            await backfill_stock_prices(asset.symbol, asset.mic_code, asset.purchase_date)
+            await backfill_asset_prices(asset.symbol, asset.mic_code, asset.exchange, asset.purchase_date)
         except Exception as e:
             print(
                 f"⚠️ Warning: Could not backfill prices for {asset.symbol} (MIC: {asset.mic_code}): {e}")
@@ -240,7 +232,6 @@ def close_asset(
         raise HTTPException(status_code=404, detail="Asset not found")
 
     asset.status = AssetStatus.CLOSED
-    db.refresh(asset)
     db.commit()
 
     return {"message": "Asset closed successfully"}
@@ -256,13 +247,12 @@ async def search_stocks_by_symbol(
     Search for stocks by symbol
     Returns all exchanges that have this symbol with their MIC codes
     """
-    from database.models import Stock
+    from database.models import AssetList
 
-    stocks = db.query(Stock).filter(Stock.symbol == symbol).all()
+    stocks = db.query(AssetList).filter(AssetList.symbol == symbol).all()
 
     if not stocks:
-        raise HTTPException(
-            status_code=404, detail=f"No stocks found with symbol {symbol}")
+        return {"symbol": symbol, "matches": []}
 
     return {
         "symbol": symbol,
@@ -280,50 +270,11 @@ async def search_stocks_by_symbol(
     }
 
 
-@router.get("/stats/summary")
-def get_portfolio_summary(
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get portfolio summary statistics"""
-    assets = db.query(Asset).filter(Asset.user_id == user.id).all()
-
-    total_value = sum(asset.purchase_price * (asset.quantity or 1)
-                      for asset in assets)
-    total_cost = sum(asset.purchase_price * (asset.quantity or 1)
-                     for asset in assets)
-    total_gain_loss = 0  # TODO: Calculate based on current prices
-
-    # Group by type
-    by_type = {}
-    for asset in assets:
-        asset_type = asset.type.value
-        if asset_type not in by_type:
-            by_type[asset_type] = {
-                "count": 0,
-                "total_value": 0,
-                "total_cost": 0
-            }
-        by_type[asset_type]["count"] += 1
-        by_type[asset_type]["total_value"] += asset.purchase_price * \
-            (asset.quantity or 1)
-        by_type[asset_type]["total_cost"] += asset.purchase_price * \
-            (asset.quantity or 1)
-
-    return {
-        "total_net_worth": total_value,
-        "total_invested": total_cost,
-        "total_gain_loss": total_gain_loss,
-        "gain_loss_percentage": (total_gain_loss / total_cost * 100) if total_cost > 0 else 0,
-        "asset_count": len(assets),
-        "by_type": by_type
-    }
-
-
 @router.get("/prices/{symbol}/{mic_code}")
-async def get_asset_price_history(
+async def get_asset_price_time_series(
     symbol: str,
     mic_code: str,  # ← Use MIC code
+    exchange: str,
     start_date: datetime = None,
     end_date: datetime = None,
     user: User = Depends(get_current_user)
@@ -337,7 +288,7 @@ async def get_asset_price_history(
         start_date = end_date - timedelta(days=30)
 
     try:
-        history = await get_stock_price_history(symbol, mic_code, start_date, end_date)
+        history = await get_asset_price_history(symbol, mic_code, exchange, start_date, end_date)
         return {
             "symbol": symbol,
             "mic_code": mic_code,

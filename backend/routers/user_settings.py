@@ -7,9 +7,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
 from database.database import get_db
-from database.models import Asset, AssetType, StockPrice, User, UserSetting
-from assets.stocks.price_manager import backfill_stock_prices
-from assets.stocks.price_manager import get_stock_price_history
+from database.models import Asset, AssetType, AssetPrice, User, UserSetting
 from dependencies.auth_dependencies import get_current_user
 
 router = APIRouter(prefix="/user_settings", tags=["user_settings"])

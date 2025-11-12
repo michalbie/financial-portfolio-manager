@@ -62,9 +62,11 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, 
 								border: "1px solid rgba(59, 130, 246, 0.2)",
 							}}
 						>
-							<Menu.Item leftSection={<IconEdit size={16} />} onClick={() => onEdit(asset)} style={{ color: "white" }}>
-								Edit
-							</Menu.Item>
+							{asset.type !== "stocks" && (
+								<Menu.Item leftSection={<IconEdit size={16} />} onClick={() => onEdit(asset)} style={{ color: "white" }}>
+									Edit
+								</Menu.Item>
+							)}
 							{asset.type === "stocks" && (
 								<>
 									<Menu.Item

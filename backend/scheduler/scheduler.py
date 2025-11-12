@@ -2,13 +2,17 @@
 
 import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
-from assets.stocks.stock_fetcher import update_stock_list
-from assets.stocks.price_manager import (
-    fetch_latest_prices_for_tracked_stocks,
-    fetch_daily_prices_for_tracked_stocks,
+from assets.assets_updater import update_assets_prices
+from assets.asset_fetcher import update_assets_list
+from assets.asset_price_historian import (
+    fetch_latest_prices_for_tracked_assets,
+    fetch_daily_prices_for_tracked_assets,
     cleanup_old_price_data
 )
+from statistics.portfolio_value_updater import update_portfolio_values
 
 scheduler = AsyncIOScheduler()
 
@@ -16,13 +20,20 @@ scheduler = AsyncIOScheduler()
 async def initialize_scheduler():
     """Initialize all scheduled jobs"""
 
-    # Update stock list weekly (background)
-    # asyncio.create_task(update_stock_list())
-    scheduler.add_job(update_stock_list, "interval", weeks=1)
+    # Update asset list weekly (background)
+    # asyncio.create_task(update_assets_list())
+    scheduler.add_job(update_assets_list, "interval", weeks=1)
+
+    # Update users assets actual prices periodically
+    scheduler.add_job(update_assets_prices, "interval",
+                      hours=1, next_run_time=datetime.now(tz=ZoneInfo("Europe/Warsaw")))
+
+    scheduler.add_job(update_portfolio_values, "interval",
+                      hours=1)
 
     # Fetch hourly prices every hour (during market hours ideally)
     scheduler.add_job(
-        fetch_latest_prices_for_tracked_stocks,
+        fetch_latest_prices_for_tracked_assets,
         "interval",
         hours=1,
         id="fetch_hourly_prices"
@@ -30,7 +41,7 @@ async def initialize_scheduler():
 
     # Fetch daily prices once per day at 6 PM EST (after market close)
     scheduler.add_job(
-        fetch_daily_prices_for_tracked_stocks,
+        fetch_daily_prices_for_tracked_assets,
         "cron",
         hour=18,  # 6 PM
         minute=0,

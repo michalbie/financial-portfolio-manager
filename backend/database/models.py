@@ -128,9 +128,9 @@ class Asset(Base):
     )
 
 
-# Stock list - (symbol, mic_code) uniquely identifies a stock
-class Stock(Base):
-    __tablename__ = "stocks"
+# Asset list - (symbol, mic_code) uniquely identifies an asset
+class AssetList(Base):
+    __tablename__ = "assets_list"
 
     symbol = Column(String, primary_key=True)
     mic_code = Column(String, primary_key=True)  # Composite primary key
@@ -148,12 +148,14 @@ class Stock(Base):
     )
 
 
-class StockPrice(Base):
-    __tablename__ = "stock_prices"
+class AssetPrice(Base):
+    __tablename__ = "asset_prices"
 
-    id = Column(Integer, primary_key=True, index=True)
+    # auto-incrementing ID for easier referencing
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     symbol = Column(String, primary_key=True, nullable=False, index=True)
-    mic_code = Column(String, primary_key=True, nullable=False, index=True)
+    exchange = Column(String, nullable=True, index=True)
+    mic_code = Column(String, primary_key=True, nullable=True, index=True)
     datetime = Column(DateTime, primary_key=True, nullable=False, index=True)
     interval = Column(String, primary_key=True, nullable=False,
                       index=True)  # "1hour", "1day"
@@ -180,7 +182,7 @@ class Statistic(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey(
         'users.id', ondelete='CASCADE'), nullable=False)
-    date = Column(Date, nullable=False, index=True)
+    date = Column(DateTime, nullable=False, index=True)
     total_portfolio_value = Column(Float, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow,

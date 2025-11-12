@@ -141,8 +141,8 @@ export function searchStocksBySymbol(symbol: string) {
 	});
 }
 
-// Get price history for a stock
-export function getStockPriceHistory(symbol: string, mic_code: string, startDate?: string, endDate?: string) {
+// Get price history for a asset
+export function getAssetPriceHistory(symbol: string, mic_code: string, startDate?: string, endDate?: string) {
 	const params: Record<string, string> = {};
 	if (startDate) params.start_date = startDate;
 	if (endDate) params.end_date = endDate;

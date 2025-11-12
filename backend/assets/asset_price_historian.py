@@ -6,23 +6,26 @@ from sqlalchemy import text, select
 from sqlalchemy.orm import Session
 
 from database.database import AsyncSessionLocal, SessionLocal
-from database.models import Asset, StockPrice, AssetType
-from assets.stocks.stock_fetcher import TwelveDataProvider
+from database.models import Asset, AssetPrice, AssetType
+from assets.asset_fetcher import TwelveDataProvider
+import traceback
 
 
-async def backfill_stock_prices(symbol: str, mic_code: str, purchase_date: datetime):
+async def backfill_asset_prices(symbol: str, mic_code: str, exchange: str, purchase_date: datetime):
     """
     Backfill historical prices from purchase_date to now
     - Last 30 days: 1-hour interval
     - Older than 30 days: 1-day interval
 
     Args:
-        symbol: Stock symbol (e.g., "AAPL")
+        symbol: Asset symbol (e.g., "AAPL")
         mic_code: Market Identifier Code (e.g., "XNAS" for NASDAQ)
-        purchase_date: Date when the stock was purchased
+        purchase_date: Date when the asset was purchased
     """
     print(
         f"📊 Backfilling prices for {symbol} on {mic_code} from {purchase_date}")
+
+    print(exchange)
 
     provider = TwelveDataProvider()
     now = datetime.now()
@@ -31,11 +34,12 @@ async def backfill_stock_prices(symbol: str, mic_code: str, purchase_date: datet
         try:
             # Check if we already have data FOR OR BEFORE purchase date
             existing_check = await db.execute(
-                select(StockPrice)
-                .where(StockPrice.symbol == symbol)
-                .where(StockPrice.mic_code == mic_code)
-                .where(StockPrice.datetime <= purchase_date)
-                .order_by(StockPrice.datetime.desc())
+                select(AssetPrice)
+                .where(AssetPrice.symbol == symbol)
+                .where(AssetPrice.mic_code == mic_code)
+                .where(AssetPrice.exchange == exchange)
+                .where(AssetPrice.datetime <= purchase_date)
+                .order_by(AssetPrice.datetime.desc())
                 .limit(1)
             )
 
@@ -53,38 +57,44 @@ async def backfill_stock_prices(symbol: str, mic_code: str, purchase_date: datet
                 print(f"  Fetching hourly data (last 30 days)...")
                 hourly_data = await provider.get_historical_prices(
                     symbol=symbol,
+                    mic_code=mic_code,
+                    exchange=exchange,
                     interval="1h",
                     start_date=thirty_days_ago.strftime("%Y-%m-%d %H:%M:%S"),
                     end_date=now.strftime("%Y-%m-%d %H:%M:%S")
                 )
 
                 # Insert hourly data
-                await _insert_prices(db, symbol, mic_code, "1hour", hourly_data)
+                await _insert_prices(db, symbol, mic_code, exchange, "1hour", hourly_data)
 
                 # Fetch daily data from purchase_date to 30 days ago
                 print(
                     f"  Fetching daily data ({purchase_date.date()} to {thirty_days_ago.date()})...")
                 daily_data = await provider.get_historical_prices(
                     symbol=symbol,
+                    mic_code=mic_code,
+                    exchange=exchange,
                     interval="1day",
                     start_date=purchase_date.strftime("%Y-%m-%d"),
                     end_date=thirty_days_ago.strftime("%Y-%m-%d")
                 )
 
                 # Insert daily data
-                await _insert_prices(db, symbol, mic_code, "1day", daily_data)
+                await _insert_prices(db, symbol, mic_code, exchange, "1day", daily_data)
             else:
                 # Purchase was within last 30 days, only fetch hourly
                 print(f"  Fetching hourly data from purchase date...")
                 hourly_data = await provider.get_historical_prices(
                     symbol=symbol,
+                    mic_code=mic_code,
+                    exchange=exchange,
                     interval="1h",
                     start_date=purchase_date.strftime("%Y-%m-%d %H:%M:%S"),
                     end_date=now.strftime("%Y-%m-%d %H:%M:%S")
                 )
 
                 # Insert hourly data
-                await _insert_prices(db, symbol, mic_code, "1hour", hourly_data)
+                await _insert_prices(db, symbol, mic_code, exchange, "1hour", hourly_data)
 
             await db.commit()
             print(f"✅ Backfilled prices for {symbol} on {mic_code}")
@@ -92,10 +102,11 @@ async def backfill_stock_prices(symbol: str, mic_code: str, purchase_date: datet
         except Exception as e:
             await db.rollback()
             print(f"❌ Error backfilling {symbol} on {mic_code}: {e}")
+            print(traceback.format_exc())
             raise
 
 
-async def _insert_prices(db, symbol: str, mic_code: str, interval: str, price_data: List[Dict]):
+async def _insert_prices(db, symbol: str, mic_code: str, exchange: str, interval: str, price_data: List[Dict]):
     """Insert price data into database using (symbol, mic_code) composite key"""
     if not price_data:
         return
@@ -115,6 +126,7 @@ async def _insert_prices(db, symbol: str, mic_code: str, interval: str, price_da
             valid_prices.append({
                 "symbol": symbol,
                 "mic_code": mic_code,
+                "exchange": exchange,
                 "datetime": dt,  # Now a datetime object
                 "interval": interval,
                 "open": float(price["open"]),
@@ -130,8 +142,8 @@ async def _insert_prices(db, symbol: str, mic_code: str, interval: str, price_da
     if valid_prices:
         await db.execute(
             text("""
-                INSERT INTO stock_prices (symbol, mic_code, datetime, interval, open, high, low, close, volume)
-                VALUES (:symbol, :mic_code, :datetime, :interval, :open, :high, :low, :close, :volume)
+                INSERT INTO asset_prices (symbol, mic_code, datetime, interval, open, high, low, close, volume, exchange)
+                VALUES (:symbol, :mic_code, :datetime, :interval, :open, :high, :low, :close, :volume, :exchange)
                 ON CONFLICT (symbol, mic_code, datetime, interval) DO NOTHING
             """),
             valid_prices
@@ -140,39 +152,40 @@ async def _insert_prices(db, symbol: str, mic_code: str, interval: str, price_da
             f"  Inserted {len(valid_prices)} {interval} price records for {symbol} on {mic_code}")
 
 
-async def fetch_latest_prices_for_tracked_stocks():
+async def fetch_latest_prices_for_tracked_assets():
     """
-    Fetch latest prices for all stocks in user portfolios.
-    Groups by (symbol, mic_code) to get unique stock identifiers.
+    Fetch latest prices for all assets (STOCKS and CRYPTO) in user portfolios.
+    Groups by (symbol, mic_code, exchange) to get unique asset identifiers.
     """
-    print(f"📈 [{datetime.utcnow()}] Fetching latest prices for tracked stocks...")
+    print(f"📈 [{datetime.utcnow()}] Fetching latest prices for tracked assets...")
 
-    # Get unique (symbol, mic_code) pairs from all user assets
+    # Get unique (symbol, mic_code, exchange) pairs from all user assets
     db = SessionLocal()
     try:
-        tracked_stocks = db.query(Asset.symbol, Asset.mic_code).filter(
-            Asset.type == AssetType.STOCKS,
+        tracked_assets = db.query(Asset.symbol, Asset.mic_code, Asset.exchange).filter(
+            Asset.type.in_([AssetType.STOCKS, AssetType.CRYPTO]),
             Asset.symbol.isnot(None),
-            Asset.mic_code.isnot(None)
+            Asset.mic_code.isnot(None),
+            Asset.exchange.isnot(None)
         ).distinct().all()
 
-        stock_pairs = [(symbol, mic_code)
-                       for symbol, mic_code in tracked_stocks]
+        asset_tuples = [(symbol, mic_code, exchange)
+                        for symbol, mic_code, exchange in tracked_assets]
     finally:
         db.close()
 
-    if not stock_pairs:
-        print("  No stocks to track")
+    if not asset_tuples:
+        print("  No assets to track")
         return
 
-    print(f"  Tracking {len(stock_pairs)} unique stocks")
+    print(f"  Tracking {len(asset_tuples)} unique assets")
 
     provider = TwelveDataProvider()
 
     print(one_hour_ago.strftime("%Y-%m-%d %H:%M:%S"),
           now.strftime("%Y-%m-%d %H:%M:%S"))
 
-    for symbol, mic_code in stock_pairs:
+    for symbol, mic_code, exchange in asset_tuples:
         try:
             # Fetch latest hourly price using date range
             now = datetime.utcnow()
@@ -180,6 +193,8 @@ async def fetch_latest_prices_for_tracked_stocks():
 
             hourly_data = await provider.get_historical_prices(
                 symbol=symbol,
+                mic_code=mic_code,
+                exchange=exchange,
                 interval="1h",
                 start_date=one_hour_ago.strftime("%Y-%m-%d %H:%M:%S"),
                 end_date=now.strftime("%Y-%m-%d %H:%M:%S")
@@ -187,7 +202,7 @@ async def fetch_latest_prices_for_tracked_stocks():
 
             if hourly_data:
                 async with AsyncSessionLocal() as db:
-                    await _insert_prices(db, symbol, mic_code, "1hour", hourly_data)
+                    await _insert_prices(db, symbol, mic_code, exchange, "1hour", hourly_data)
                     await db.commit()
 
             # Rate limiting: 8 calls/minute for free tier
@@ -195,36 +210,37 @@ async def fetch_latest_prices_for_tracked_stocks():
 
         except Exception as e:
             print(f"  ❌ Error fetching {symbol} on {mic_code}: {e}")
+            print(traceback.format_exc())
             continue
 
     print(f"✅ Finished fetching latest prices")
 
 
-async def fetch_daily_prices_for_tracked_stocks():
-    """Fetch daily closing prices for all tracked stocks"""
-    print(f"📊 [{datetime.utcnow()}] Fetching daily prices for tracked stocks...")
+async def fetch_daily_prices_for_tracked_assets():
+    """Fetch daily closing prices for all tracked assets"""
+    print(f"📊 [{datetime.utcnow()}] Fetching daily prices for tracked assets...")
 
-    # Get unique (symbol, mic_code) pairs
     db = SessionLocal()
     try:
-        tracked_stocks = db.query(Asset.symbol, Asset.mic_code).filter(
-            Asset.type == AssetType.STOCKS,
+        tracked_assets = db.query(Asset.symbol, Asset.mic_code, Asset.exchange).filter(
+            Asset.type.in_([AssetType.STOCKS, AssetType.CRYPTO]),
             Asset.symbol.isnot(None),
-            Asset.mic_code.isnot(None)
+            Asset.mic_code.isnot(None),
+            Asset.exchange.isnot(None)
         ).distinct().all()
 
-        stock_pairs = [(symbol, mic_code)
-                       for symbol, mic_code in tracked_stocks]
+        asset_tuples = [(symbol, mic_code, exchange)
+                        for symbol, mic_code, exchange in tracked_assets]
     finally:
         db.close()
 
-    if not stock_pairs:
-        print("  No stocks to track")
+    if not asset_tuples:
+        print("  No assets to track")
         return
 
     provider = TwelveDataProvider()
 
-    for symbol, mic_code in stock_pairs:
+    for symbol, mic_code, exchange in asset_tuples:
         try:
             # Fetch latest daily price using date range
             today = datetime.utcnow()
@@ -232,6 +248,8 @@ async def fetch_daily_prices_for_tracked_stocks():
 
             daily_data = await provider.get_historical_prices(
                 symbol=symbol,
+                mic_code=mic_code,
+                exchange=exchange,
                 interval="1day",
                 start_date=yesterday.strftime("%Y-%m-%d"),
                 end_date=today.strftime("%Y-%m-%d")
@@ -239,7 +257,7 @@ async def fetch_daily_prices_for_tracked_stocks():
 
             if daily_data:
                 async with AsyncSessionLocal() as db:
-                    await _insert_prices(db, symbol, mic_code, "1day", daily_data)
+                    await _insert_prices(db, symbol, mic_code, exchange, "1day", daily_data)
                     await db.commit()
 
             # Rate limiting
@@ -247,20 +265,22 @@ async def fetch_daily_prices_for_tracked_stocks():
 
         except Exception as e:
             print(f"  ❌ Error fetching {symbol} on {mic_code}: {e}")
+            print(traceback.format_exc())
             continue
 
     print(f"✅ Finished fetching daily prices")
 
 
-async def get_stock_price_history(
+async def get_asset_price_history(
     symbol: str,
     mic_code: str,
+    exchange: str,
     start_date: datetime,
     end_date: datetime
 ) -> List[Dict]:
     """
-    Get stock price history for charting.
-    Uses (symbol, mic_code) to uniquely identify the stock.
+    Get asset price history for charting.
+    Uses (symbol, mic_code) to uniquely identify the asset.
     """
     days_diff = (end_date - start_date).days
 
@@ -272,13 +292,14 @@ async def get_stock_price_history(
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(
-            select(StockPrice)
-            .where(StockPrice.symbol == symbol)
-            .where(StockPrice.mic_code == mic_code)
-            .where(StockPrice.interval == interval)
-            .where(StockPrice.datetime >= start_date)
-            .where(StockPrice.datetime <= end_date)
-            .order_by(StockPrice.datetime)
+            select(AssetPrice)
+            .where(AssetPrice.symbol == symbol)
+            .where(AssetPrice.mic_code == mic_code)
+            .where(AssetPrice.exchange == exchange)
+            .where(AssetPrice.interval == interval)
+            .where(AssetPrice.datetime >= start_date)
+            .where(AssetPrice.datetime <= end_date)
+            .order_by(AssetPrice.datetime)
         )
 
         prices = result.scalars().all()
@@ -321,4 +342,5 @@ async def cleanup_old_price_data():
 
         except Exception as e:
             await db.rollback()
+            print(traceback.format_exc())
             print(f"❌ Error cleaning up old data: {e}")

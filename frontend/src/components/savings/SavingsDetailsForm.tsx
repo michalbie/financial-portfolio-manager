@@ -27,7 +27,6 @@ export const SavingsDetailsForm: React.FC<SavingsDetailsFormProps> = ({ name, pu
 			<TextInput
 				label="Account Name"
 				placeholder="Savings Account"
-				defaultValue="Savings Account"
 				value={name}
 				onChange={(e) => onNameChange && onNameChange(e.currentTarget.value)}
 				required
