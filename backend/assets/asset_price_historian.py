@@ -125,7 +125,7 @@ async def _insert_prices(db, symbol: str, mic_code: str, exchange: str, interval
                 "symbol": symbol,
                 "mic_code": mic_code,
                 "exchange": exchange,
-                "currency": price["currency"] if "currency" in price else None,
+                "currency": price["currency"] or symbol.split("/")[1],
                 "datetime": dt,  # Now a datetime object
                 "interval": interval,
                 "open": float(price["open"]),

@@ -71,6 +71,16 @@ export interface StockSearchResult {
 	}[];
 }
 
+export interface CryptoSearchResult {
+	symbol: string;
+	matches: {
+		symbol: string;
+		available_exchanges: string[];
+		currency_base: string;
+		currency_quote: string;
+	}[];
+}
+
 export interface PriceData {
 	datetime: string;
 	open: number;
@@ -141,6 +151,13 @@ export function closeAsset(assetId: number, transferToSavings: boolean) {
 export function searchStocksBySymbol(symbol: string) {
 	return makeSafeRequest<StockSearchResult>(`assets/stocks/search/${symbol}`, "GET", {
 		onErrorMessage: "Failed to search for stocks.",
+	});
+}
+
+// Search crypto by symbol
+export function searchCryptoBySymbol(symbol: string) {
+	return makeSafeRequest<CryptoSearchResult>(`assets/crypto/search/${symbol}`, "GET", {
+		onErrorMessage: "Failed to search for cryptocurrencies.",
 	});
 }
 

@@ -23,6 +23,7 @@ import { StockDetailsForm } from "../../components/stocks/StockDetailsForm";
 import { BondsDetailsForm } from "../../components/bonds/BondsDetailsForm";
 import { CommonAssetFields } from "../../components/common/CommonAssetFields";
 import { SavingsDetailsForm } from "../../components/savings/SavingsDetailsForm";
+import { CryptoDetailsForm } from "../../components/crypto/CryptoDetailsForm";
 
 const Dashboard: React.FC = () => {
 	const { user } = useAuth();
@@ -173,6 +174,27 @@ const Dashboard: React.FC = () => {
 						onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
 						onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
 						onDeductFromSavingsChange={(value) => setFormData({ ...formData, deduct_from_savings: value })}
+					/>
+				);
+
+			case AssetType.CRYPTO:
+				return (
+					<CryptoDetailsForm
+						name={formData.name}
+						symbol={formData.symbol || ""}
+						micCode={formData.mic_code || ""}
+						purchasePrice={formData.purchase_price}
+						quantity={formData.quantity || 1}
+						purchaseDate={formData.purchase_date || new Date().toISOString()}
+						currency={formData.currency}
+						deductFromSavings={formData.deduct_from_savings}
+						onNameChange={(value) => setFormData({ ...formData, name: value })}
+						onSymbolChange={(symbol, exchange, name, currency) => setFormData({ ...formData, symbol, exchange, name, currency })}
+						onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
+						onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
+						onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
+						onDeductFromSavingsChange={(value) => setFormData({ ...formData, deduct_from_savings: value })}
+						onCurrencyChange={(value) => setFormData({ ...formData, currency: value })}
 					/>
 				);
 

@@ -152,7 +152,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, 
 							Total Value
 						</Text>
 						<Text size="lg" fw={700} style={{ color: "white" }}>
-							{asset.type === "stocks" && asset.current_price && (
+							{(asset.type === "stocks" || asset.type === "crypto") && asset.current_price && (
 								<span style={{ marginRight: 4, fontSize: "12px", color: "rgba(255,255,255,0.6)" }}>
 									({asset.currency + " " + asset.current_price.toFixed(2)})
 								</span>

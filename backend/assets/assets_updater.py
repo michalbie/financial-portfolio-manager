@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict
 from sqlalchemy import select, text
 
+from assets.crypto.update_crypto_prices import update_crypto_prices
 from database.database import AsyncSessionLocal, SessionLocal, get_async_db
 from database.models import Asset, AssetType, AssetPrice
 from assets.stocks.update_stock_prices import update_stock_prices
@@ -47,7 +48,9 @@ async def update_user_assets_prices(user_id: int) -> None:
         )
         assets = result.scalars().all()
         stocks = [asset for asset in assets if asset.type == AssetType.STOCKS]
+        crypto = [asset for asset in assets if asset.type == AssetType.CRYPTO]
 
         await update_stock_prices(async_db, stocks)
+        await update_crypto_prices(async_db, crypto)
 
         return assets

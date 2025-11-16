@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
 from database.database import get_db
-from database.models import Asset, AssetStatus, AssetType, AssetPrice, Statistic, User
+from database.models import Asset, AssetStatus, AssetType, AssetPrice, CryptoList, Statistic, User
 from routers.auth import get_current_user
 from assets.asset_price_historian import backfill_asset_prices
 from assets.asset_price_historian import get_asset_price_history
@@ -140,8 +140,8 @@ async def create_asset(
     db.commit()
     db.refresh(asset)
 
-    # If it's a stock, backfill historical prices
-    if asset.type == AssetType.STOCKS and asset.symbol and asset.mic_code and asset.purchase_date:
+    # If it's a stock or crypto, backfill historical prices
+    if (asset.type == AssetType.STOCKS and asset.symbol and asset.mic_code and asset.purchase_date) or (asset.type == AssetType.CRYPTO and asset.symbol and asset.purchase_date and asset.exchange):
         try:
             await backfill_asset_prices(asset.symbol, asset.mic_code, asset.exchange, asset.purchase_date)
         except Exception as e:
@@ -314,6 +314,37 @@ async def search_stocks_by_symbol(
                 "currency": stock.currency
             }
             for stock in stocks
+        ]
+    }
+
+
+@router.get("/crypto/search/{symbol:path}")
+async def search_crypto_by_symbol(
+    symbol: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Search for stocks by symbol
+    Returns all exchanges that have this symbol with their MIC codes
+    """
+    from database.models import AssetList
+
+    crypto = db.query(CryptoList).filter(CryptoList.symbol == symbol).all()
+
+    if not crypto:
+        return {"symbol": symbol, "matches": []}
+
+    return {
+        "symbol": symbol,
+        "matches": [
+            {
+                "symbol": crypto_item.symbol,
+                "available_exchanges": crypto_item.available_exchanges,
+                "currency_base": crypto_item.currency_base,
+                "currency_quote": crypto_item.currency_quote
+            }
+            for crypto_item in crypto
         ]
     }
 
