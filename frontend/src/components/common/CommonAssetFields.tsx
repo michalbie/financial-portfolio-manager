@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Stack, NumberInput, Checkbox, Tooltip } from "@mantine/core";
+import { Stack, NumberInput, Checkbox, Tooltip, Select } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useAuth } from "../../context/AuthContext";
 
@@ -8,10 +8,12 @@ interface CommonAssetFieldsProps {
 	quantity: number;
 	purchaseDate: string;
 	deductFromSavings: boolean;
+	currency: string;
 	onPurchasePriceChange: (value: number) => void;
 	onQuantityChange: (value: number) => void;
 	onPurchaseDateChange: (value: string) => void;
 	onDeductFromSavingsChange: (value: boolean) => void;
+	onCurrencyChange: (value: string) => void;
 }
 
 const inputStyles = {
@@ -28,22 +30,38 @@ export const CommonAssetFields: React.FC<CommonAssetFieldsProps> = ({
 	quantity,
 	purchaseDate,
 	deductFromSavings,
+	currency,
 	onPurchasePriceChange,
 	onQuantityChange,
 	onPurchaseDateChange,
 	onDeductFromSavingsChange,
+	onCurrencyChange,
 }) => {
 	const { user } = useAuth();
 	const hasPrimarySavingsAccount = user?.user_settings?.primary_saving_asset_id;
 
 	return (
 		<Stack gap="md">
+			<Select
+				label="Currency"
+				placeholder="Select currency"
+				disabled
+				data={[
+					{ value: "USD", label: "USD - US Dollar" },
+					{ value: "EUR", label: "EUR - Euro" },
+					{ value: "GBP", label: "GBP - British Pound" },
+				]}
+				styles={inputStyles}
+				value={currency}
+				onChange={(value) => onCurrencyChange(value || "USD")}
+			/>
+
 			<NumberInput
 				label="Purchase Price"
 				placeholder="Price per unit"
 				value={purchasePrice}
 				onChange={(value) => onPurchasePriceChange(Number(value) || 0)}
-				prefix="$"
+				// prefix="$"
 				thousandSeparator=","
 				decimalScale={2}
 				required

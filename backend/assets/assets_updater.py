@@ -16,7 +16,7 @@ from sqlalchemy import select, text
 
 from database.database import AsyncSessionLocal, SessionLocal, get_async_db
 from database.models import Asset, AssetType, AssetPrice
-from assets.stocks.stock_updater import update_stock_prices
+from assets.stocks.update_stock_prices import update_stock_prices
 
 
 async def update_assets_prices() -> None:
@@ -33,8 +33,6 @@ async def update_assets_prices() -> None:
         update_user_assets_prices(user_id)
         for user_id in user_ids
     ])
-
-    print("Assets prices updated.")
 
 
 async def update_user_assets_prices(user_id: int) -> None:

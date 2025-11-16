@@ -25,8 +25,6 @@ async def backfill_asset_prices(symbol: str, mic_code: str, exchange: str, purch
     print(
         f"📊 Backfilling prices for {symbol} on {mic_code} from {purchase_date}")
 
-    print(exchange)
-
     provider = TwelveDataProvider()
     now = datetime.now()
 
@@ -127,6 +125,7 @@ async def _insert_prices(db, symbol: str, mic_code: str, exchange: str, interval
                 "symbol": symbol,
                 "mic_code": mic_code,
                 "exchange": exchange,
+                "currency": price["currency"] if "currency" in price else None,
                 "datetime": dt,  # Now a datetime object
                 "interval": interval,
                 "open": float(price["open"]),
@@ -142,8 +141,8 @@ async def _insert_prices(db, symbol: str, mic_code: str, exchange: str, interval
     if valid_prices:
         await db.execute(
             text("""
-                INSERT INTO asset_prices (symbol, mic_code, datetime, interval, open, high, low, close, volume, exchange)
-                VALUES (:symbol, :mic_code, :datetime, :interval, :open, :high, :low, :close, :volume, :exchange)
+                INSERT INTO asset_prices (symbol, mic_code,  currency, datetime, interval, open, high, low, close, volume, exchange)
+                VALUES (:symbol, :mic_code, :currency, :datetime, :interval, :open, :high, :low, :close, :volume, :exchange)
                 ON CONFLICT (symbol, mic_code, datetime, interval) DO NOTHING
             """),
             valid_prices
@@ -182,14 +181,13 @@ async def fetch_latest_prices_for_tracked_assets():
 
     provider = TwelveDataProvider()
 
-    print(one_hour_ago.strftime("%Y-%m-%d %H:%M:%S"),
-          now.strftime("%Y-%m-%d %H:%M:%S"))
-
     for symbol, mic_code, exchange in asset_tuples:
         try:
             # Fetch latest hourly price using date range
             now = datetime.utcnow()
             one_hour_ago = now - timedelta(hours=1)
+            print(one_hour_ago.strftime("%Y-%m-%d %H:%M:%S"),
+                  now.strftime("%Y-%m-%d %H:%M:%S"))
 
             hourly_data = await provider.get_historical_prices(
                 symbol=symbol,

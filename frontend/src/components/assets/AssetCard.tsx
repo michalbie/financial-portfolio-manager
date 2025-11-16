@@ -119,7 +119,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, 
 						size="sm"
 						fw={600}
 						style={{
-							color: asset.current_price && asset.current_price > asset.purchase_price ? "#10b981" : "#ef4444",
+							color: asset.current_price ? (asset.current_price > asset.purchase_price ? "#10b981" : "#ef4444") : "gray",
 						}}
 					>
 						{asset.current_price ? `${growthValue}` : "N/A"}
@@ -144,7 +144,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, 
 							Purchase Price
 						</Text>
 						<Text size="sm" fw={600} style={{ color: "white" }}>
-							${asset.purchase_price.toLocaleString()}
+							{asset.currency + " " + asset.purchase_price.toLocaleString()}
 						</Text>
 					</Group>
 					<Group justify="space-between">
@@ -154,10 +154,10 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, 
 						<Text size="lg" fw={700} style={{ color: "white" }}>
 							{asset.type === "stocks" && asset.current_price && (
 								<span style={{ marginRight: 4, fontSize: "12px", color: "rgba(255,255,255,0.6)" }}>
-									(${asset.current_price.toFixed(2)})
+									({asset.currency + " " + asset.current_price.toFixed(2)})
 								</span>
 							)}
-							${totalValue.toLocaleString()}
+							{asset.currency + " " + totalValue.toLocaleString()}
 						</Text>
 					</Group>
 					{asset.purchase_date && (

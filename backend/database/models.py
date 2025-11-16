@@ -1,6 +1,7 @@
 # backend/models.py - CORRECTED VERSION
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table, Float, Enum, Date, Index
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -108,6 +109,7 @@ class Asset(Base):
     symbol = Column(String, nullable=True, index=True)
     exchange = Column(String, nullable=True, index=True)
     mic_code = Column(String, nullable=True, index=True)
+    currency = Column(String, nullable=True, index=True)
     type = Column(Enum(AssetType), nullable=False)
     purchase_price = Column(Float, nullable=False)
     current_price = Column(Float, nullable=True)
@@ -125,6 +127,21 @@ class Asset(Base):
 
     __table_args__ = (
         Index('idx_symbol_mic', 'symbol', 'mic_code'),
+    )
+
+
+class CurrencyExchangeRate(Base):
+    __tablename__ = "currency_exchange_rates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_currency = Column(String, nullable=False, index=True)
+    target_currency = Column(String, nullable=False, index=True)
+    rate = Column(Float, nullable=False)
+    fetched_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_source_target', 'source_currency',
+              'target_currency', unique=True),
     )
 
 
@@ -148,6 +165,21 @@ class AssetList(Base):
     )
 
 
+class CryptoList(Base):
+    __tablename__ = "crypto_list"
+
+    symbol = Column(String, primary_key=True)
+    available_exchanges = Column(ARRAY(String), nullable=False)
+    currency_base = Column(String, nullable=True)
+    currency_quote = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_crypto_symbol', 'symbol'),
+    )
+
+
 class AssetPrice(Base):
     __tablename__ = "asset_prices"
 
@@ -155,6 +187,7 @@ class AssetPrice(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     symbol = Column(String, primary_key=True, nullable=False, index=True)
     exchange = Column(String, nullable=True, index=True)
+    currency = Column(String, nullable=True, index=True)
     mic_code = Column(String, primary_key=True, nullable=True, index=True)
     datetime = Column(DateTime, primary_key=True, nullable=False, index=True)
     interval = Column(String, primary_key=True, nullable=False,

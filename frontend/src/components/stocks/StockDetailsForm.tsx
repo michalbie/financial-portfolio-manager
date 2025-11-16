@@ -20,12 +20,14 @@ interface StockDetailsFormProps {
 	quantity: number;
 	purchaseDate: string;
 	deductFromSavings: boolean;
+	currency: string;
 	onNameChange: (value: string) => void;
-	onSymbolChange: (symbol: string, name: string, micCode: string, exchange: string) => void;
+	onSymbolChange: (symbol: string, name: string, micCode: string, exchange: string, currency: string) => void;
 	onPurchasePriceChange: (value: number) => void;
 	onQuantityChange: (value: number) => void;
 	onPurchaseDateChange: (value: string) => void;
 	onDeductFromSavingsChange: (value: boolean) => void;
+	onCurrencyChange: (value: string) => void;
 }
 
 const inputStyles = {
@@ -54,12 +56,14 @@ export const StockDetailsForm: React.FC<StockDetailsFormProps> = ({
 	quantity,
 	purchaseDate,
 	deductFromSavings,
+	currency,
 	onNameChange,
 	onSymbolChange,
 	onPurchasePriceChange,
 	onQuantityChange,
 	onPurchaseDateChange,
 	onDeductFromSavingsChange,
+	onCurrencyChange,
 }) => {
 	const [stockSearchQuery, setStockSearchQuery] = useState("");
 	const [stockOptions, setStockOptions] = useState<StockOption[]>([]);
@@ -100,7 +104,7 @@ export const StockDetailsForm: React.FC<StockDetailsFormProps> = ({
 		const stock = stockOptions.find((s) => s.symbol === selectedSymbol);
 		if (stock) {
 			onNameChange(stock.name);
-			onSymbolChange(selectedSymbol, stock.name, "", "");
+			onSymbolChange(selectedSymbol, stock.name, "", "", stock.currency);
 			setSelectedStock(null);
 		}
 	};
@@ -109,7 +113,7 @@ export const StockDetailsForm: React.FC<StockDetailsFormProps> = ({
 		const stock = stockOptions.find((s) => s.symbol === symbol && s.exchange === exchange);
 		if (stock) {
 			setSelectedStock(stock);
-			onSymbolChange(symbol, stock.name, stock.mic_code, stock.exchange);
+			onSymbolChange(symbol, stock.name, stock.mic_code, stock.exchange, stock.currency);
 		}
 	};
 
@@ -160,11 +164,13 @@ export const StockDetailsForm: React.FC<StockDetailsFormProps> = ({
 				purchasePrice={purchasePrice}
 				quantity={quantity}
 				purchaseDate={purchaseDate}
+				currency={selectedStock ? selectedStock.currency : currency}
 				onPurchasePriceChange={onPurchasePriceChange}
 				onQuantityChange={onQuantityChange}
 				onPurchaseDateChange={onPurchaseDateChange}
 				deductFromSavings={deductFromSavings}
 				onDeductFromSavingsChange={onDeductFromSavingsChange}
+				onCurrencyChange={onCurrencyChange}
 			/>
 		</Stack>
 	);

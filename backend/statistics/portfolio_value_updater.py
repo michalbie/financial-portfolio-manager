@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict
 from sqlalchemy import select, text
 
+from currency.translate_currency import translate_currency
 from database.database import AsyncSessionLocal
 from database.models import Asset, Statistic
 
@@ -38,7 +39,7 @@ async def update_portfolio_values() -> None:
 
 async def update_user_portfolio_value(user_id: int) -> None:
     """Update portfolio value statistics for the user"""
-    
+
     async with AsyncSessionLocal() as async_db:
         result = await async_db.execute(
             select(Asset).where(
@@ -51,8 +52,26 @@ async def update_user_portfolio_value(user_id: int) -> None:
         total_value = 0.0
 
         for asset in assets:
-            if asset.current_price and asset.quantity:
-                total_value += asset.current_price * asset.quantity
+            asset_price = asset.current_price if asset.current_price is not None else asset.purchase_price
+
+            if asset.currency and asset.currency != "USD":
+                total_value += translate_currency(
+                    asset.currency, "USD", asset_price * asset.quantity)
+
+            else:
+                total_value += asset_price * asset.quantity
+
+        last_statistic = await async_db.execute(
+            select(Statistic)
+            .where(Statistic.user_id == user_id)
+            .order_by(Statistic.date.desc())
+            .limit(1)
+        )
+        last_statistic = last_statistic.scalar_one_or_none()
+
+        if last_statistic and last_statistic.total_portfolio_value == total_value:
+            # No change in portfolio value, skip adding a new statistic
+            return
 
         # Create a new Statistic entry
         statistic = Statistic(

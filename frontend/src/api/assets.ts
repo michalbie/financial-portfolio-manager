@@ -23,6 +23,7 @@ export interface Asset {
 	symbol?: string;
 	mic_code?: string; // ← MIC code instead of exchange
 	purchase_price: number;
+	currency: string;
 	current_price?: number;
 	purchase_date?: string;
 	exchange?: string;
@@ -38,6 +39,7 @@ export interface AssetCreate {
 	type: AssetType;
 	symbol?: string;
 	mic_code?: string; // ← MIC code instead of exchange
+	currency: string;
 	purchase_price: number;
 	purchase_date?: string;
 	quantity?: number;
@@ -50,6 +52,7 @@ export interface AssetUpdate {
 	type?: AssetType;
 	symbol?: string;
 	mic_code?: string; // ← MIC code instead of exchange
+	currency?: string;
 	purchase_price?: number;
 	purchase_date?: string;
 	quantity?: number;

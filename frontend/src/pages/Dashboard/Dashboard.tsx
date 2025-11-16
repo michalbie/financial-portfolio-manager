@@ -39,6 +39,7 @@ const Dashboard: React.FC = () => {
 		symbol: "",
 		mic_code: "",
 		purchase_price: 0,
+		currency: "USD",
 		purchase_date: new Date().toISOString(),
 		exchange: undefined,
 		quantity: 1,
@@ -98,6 +99,7 @@ const Dashboard: React.FC = () => {
 			type: asset.type,
 			symbol: asset.symbol,
 			mic_code: asset.mic_code,
+			currency: asset.currency || "USD",
 			purchase_price: asset.purchase_price,
 			purchase_date: asset.purchase_date,
 			exchange: asset.exchange,
@@ -115,6 +117,7 @@ const Dashboard: React.FC = () => {
 			symbol: "",
 			mic_code: "",
 			purchase_price: 0,
+			currency: "USD",
 			purchase_date: new Date().toISOString(),
 			exchange: undefined,
 			quantity: 1,
@@ -143,15 +146,17 @@ const Dashboard: React.FC = () => {
 						purchasePrice={formData.purchase_price}
 						quantity={formData.quantity || 1}
 						purchaseDate={formData.purchase_date || new Date().toISOString()}
+						currency={formData.currency}
 						deductFromSavings={formData.deduct_from_savings}
 						onNameChange={(value) => setFormData({ ...formData, name: value })}
-						onSymbolChange={(symbol, name, micCode, exchange) =>
-							setFormData({ ...formData, symbol, name, mic_code: micCode, exchange })
+						onSymbolChange={(symbol, name, micCode, exchange, currency) =>
+							setFormData({ ...formData, symbol, name, mic_code: micCode, exchange, currency: currency })
 						}
 						onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
 						onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
 						onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
 						onDeductFromSavingsChange={(value) => setFormData({ ...formData, deduct_from_savings: value })}
+						onCurrencyChange={(value) => setFormData({ ...formData, currency: value })}
 					/>
 				);
 
@@ -176,8 +181,10 @@ const Dashboard: React.FC = () => {
 					<SavingsDetailsForm
 						name={formData.name}
 						purchasePrice={formData.purchase_price}
+						currency={formData.currency}
 						onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
 						onNameChange={(value) => setFormData({ ...formData, name: value })}
+						onCurrencyChange={(value) => setFormData({ ...formData, currency: value })}
 					/>
 				);
 
@@ -203,11 +210,13 @@ const Dashboard: React.FC = () => {
 							purchasePrice={formData.purchase_price}
 							quantity={formData.quantity || 1}
 							purchaseDate={formData.purchase_date || new Date().toISOString()}
+							currency={formData.currency}
 							onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
 							onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
 							onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
 							deductFromSavings={formData.deduct_from_savings}
 							onDeductFromSavingsChange={(value: boolean) => setFormData({ ...formData, deduct_from_savings: value })}
+							onCurrencyChange={(value: string) => setFormData({ ...formData, currency: value })}
 						/>
 					</Stack>
 				);

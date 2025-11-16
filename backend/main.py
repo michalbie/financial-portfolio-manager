@@ -11,6 +11,7 @@ from routers.auth import router as auth_router
 from routers.admin import router as admin_router
 from routers.assets import router as assets_router
 from routers.user_settings import router as user_settings_router
+from routers.statistics import router as statistics_router
 from database.database import init_db, seed_default_data
 from scheduler.scheduler import initialize_scheduler
 
@@ -48,6 +49,7 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(assets_router)
 app.include_router(user_settings_router)
+app.include_router(statistics_router)
 
 
 @app.get("/")

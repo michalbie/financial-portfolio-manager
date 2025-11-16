@@ -6,13 +6,14 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from assets.assets_updater import update_assets_prices
-from assets.asset_fetcher import update_assets_list
+from assets.asset_fetcher import update_assets_list, update_crypto_list
 from assets.asset_price_historian import (
     fetch_latest_prices_for_tracked_assets,
     fetch_daily_prices_for_tracked_assets,
     cleanup_old_price_data
 )
 from statistics.portfolio_value_updater import update_portfolio_values
+from currency.update_currencies import update_currencies
 
 scheduler = AsyncIOScheduler()
 
@@ -21,8 +22,9 @@ async def initialize_scheduler():
     """Initialize all scheduled jobs"""
 
     # Update asset list weekly (background)
-    # asyncio.create_task(update_assets_list())
+    # asyncio.create_task(update_crypto_list())
     scheduler.add_job(update_assets_list, "interval", weeks=1)
+    scheduler.add_job(update_crypto_list, "interval", weeks=1)
 
     # Update users assets actual prices periodically
     scheduler.add_job(update_assets_prices, "interval",
@@ -30,6 +32,9 @@ async def initialize_scheduler():
 
     scheduler.add_job(update_portfolio_values, "interval",
                       hours=1)
+
+    scheduler.add_job(update_currencies, "interval",
+                      days=1)
 
     # Fetch hourly prices every hour (during market hours ideally)
     scheduler.add_job(
@@ -58,8 +63,4 @@ async def initialize_scheduler():
     )
 
     scheduler.start()
-    print("⏰ Scheduler initialized with jobs:")
-    print("  - Update stock list: weekly")
-    print("  - Fetch hourly prices: every hour")
-    print("  - Fetch daily prices: daily at 6 PM")
-    print("  - Cleanup old data: daily at 2 AM")
+    print("⏰ Scheduler initialized")

@@ -1,11 +1,13 @@
 import React, { useEffect } from "react";
-import { NumberInput, Stack, TextInput } from "@mantine/core";
+import { NumberInput, Select, Stack, TextInput } from "@mantine/core";
 
 interface SavingsDetailsFormProps {
 	name: string;
 	purchasePrice: number;
+	currency: string;
 	onPurchasePriceChange: (value: number) => void;
 	onNameChange?: (value: string) => void;
+	onCurrencyChange: (value: string) => void;
 }
 
 const inputStyles = {
@@ -17,7 +19,14 @@ const inputStyles = {
 	},
 };
 
-export const SavingsDetailsForm: React.FC<SavingsDetailsFormProps> = ({ name, purchasePrice, onPurchasePriceChange, onNameChange }) => {
+export const SavingsDetailsForm: React.FC<SavingsDetailsFormProps> = ({
+	name,
+	purchasePrice,
+	currency,
+	onPurchasePriceChange,
+	onNameChange,
+	onCurrencyChange,
+}) => {
 	useEffect(() => {
 		onNameChange && onNameChange("Savings Account");
 	}, []);
@@ -31,6 +40,20 @@ export const SavingsDetailsForm: React.FC<SavingsDetailsFormProps> = ({ name, pu
 				onChange={(e) => onNameChange && onNameChange(e.currentTarget.value)}
 				required
 				styles={inputStyles}
+			/>
+
+			<Select
+				label="Currency"
+				placeholder="Select currency"
+				disabled
+				data={[
+					{ value: "USD", label: "USD - US Dollar" },
+					{ value: "EUR", label: "EUR - Euro" },
+					{ value: "GBP", label: "GBP - British Pound" },
+				]}
+				styles={inputStyles}
+				value={currency}
+				onChange={(value) => onCurrencyChange(value || "USD")}
 			/>
 
 			<NumberInput
