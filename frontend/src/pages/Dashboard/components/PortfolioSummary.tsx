@@ -5,15 +5,14 @@ import getGrowthPercent from "../../../common/getGrowthPercent";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { getMyStatistics } from "../../../api/stats";
 
-interface PortfolioSummaryProps {
-	assets: Asset[];
-}
+interface PortfolioSummaryProps {}
 
 interface PortfolioStat {
 	id: number;
 	user_id: number;
 	date: string;
 	total_portfolio_value: number;
+	portfolio_distribution: Record<string, number>;
 	created_at: string;
 	updated_at: string;
 }
@@ -97,15 +96,10 @@ const renderLegend = (props: any) => {
 	);
 };
 
-export const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ assets }) => {
+export const PortfolioSummary: React.FC<PortfolioSummaryProps> = () => {
 	const [portfolioStatistics, setPortfolioStatistics] = useState<PortfolioStat[]>([]);
 
-	// Compute distribution by asset type
-	const portfolioDistribution = assets.reduce((acc, asset) => {
-		const currentPrice = asset.current_price || asset.purchase_price;
-		acc[asset.type] = (acc[asset.type] || 0) + currentPrice * (asset.quantity || 1);
-		return acc;
-	}, {} as Record<string, number>);
+	const portfolioDistribution = portfolioStatistics[portfolioStatistics.length - 1]?.portfolio_distribution || {};
 
 	// Calculate total for percentages
 	const totalValue = Object.values(portfolioDistribution).reduce((sum, val) => sum + val, 0);

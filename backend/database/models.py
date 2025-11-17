@@ -1,5 +1,5 @@
 # backend/models.py - CORRECTED VERSION
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table, Float, Enum, Date, Index
+from sqlalchemy import JSON, Column, Integer, String, DateTime, ForeignKey, Table, Float, Enum, Date, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
@@ -115,6 +115,7 @@ class Asset(Base):
     current_price = Column(Float, nullable=True)
     purchase_date = Column(DateTime, nullable=True)
     quantity = Column(Float, nullable=True)
+    bond_settings = Column(JSON, nullable=True)
     auto_update = Column(Integer, default=1)
     user_id = Column(Integer, ForeignKey(
         'users.id', ondelete='CASCADE'), nullable=False)
@@ -217,6 +218,7 @@ class Statistic(Base):
         'users.id', ondelete='CASCADE'), nullable=False)
     date = Column(DateTime, nullable=False, index=True)
     total_portfolio_value = Column(Float, nullable=False)
+    portfolio_distribution = Column(JSON, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow,
                         onupdate=datetime.utcnow)

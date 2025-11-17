@@ -29,6 +29,7 @@ class AssetCreate(BaseModel):
     exchange: Optional[str] = None
     quantity: Optional[float] = 1.0
     deduct_from_savings: bool = False
+    bond_settings: Optional[dict] = None
 
 
 class AssetUpdate(BaseModel):
@@ -41,6 +42,7 @@ class AssetUpdate(BaseModel):
     purchase_date: datetime | None = None
     exchange: str | None = None
     quantity: float | None = None
+    bond_settings: Optional[dict] | None = None
 
 
 class AssetResponse(BaseModel):
@@ -58,6 +60,8 @@ class AssetResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     status: AssetStatus
+    exchange: Optional[str]
+    bond_settings: Optional[dict] = None
 
     class Config:
         from_attributes = True
@@ -133,6 +137,7 @@ async def create_asset(
         purchase_date=asset_data.purchase_date or datetime.utcnow(),
         quantity=asset_data.quantity or 1.0,
         exchange=asset_data.exchange or None,
+        bond_settings=asset_data.bond_settings or None,
         user_id=user.id
     )
 
@@ -190,6 +195,8 @@ async def update_asset(
         asset.quantity = asset_data.quantity
     if asset_data.exchange is not None:
         asset.exchange = asset_data.exchange
+    if asset_data.bond_settings is not None:
+        asset.bond_settings = asset_data.bond_settings
 
     db.commit()
     db.refresh(asset)

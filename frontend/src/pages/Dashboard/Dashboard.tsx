@@ -45,6 +45,7 @@ const Dashboard: React.FC = () => {
 		exchange: undefined,
 		quantity: 1,
 		deduct_from_savings: hasPrimarySavingsAccount ? true : false,
+		bond_settings: null,
 	});
 
 	useEffect(() => {
@@ -106,6 +107,7 @@ const Dashboard: React.FC = () => {
 			exchange: asset.exchange,
 			quantity: asset.quantity,
 			deduct_from_savings: hasPrimarySavingsAccount ? true : false,
+			bond_settings: asset.bond_settings || null,
 		});
 		setActiveStep(1);
 		setModalOpened(true);
@@ -123,6 +125,7 @@ const Dashboard: React.FC = () => {
 			exchange: undefined,
 			quantity: 1,
 			deduct_from_savings: hasPrimarySavingsAccount ? true : false,
+			bond_settings: null,
 		});
 		setActiveStep(0);
 	};
@@ -168,12 +171,16 @@ const Dashboard: React.FC = () => {
 						purchasePrice={formData.purchase_price}
 						quantity={formData.quantity || 1}
 						purchaseDate={formData.purchase_date || new Date().toISOString()}
+						currency={formData.currency}
 						deductFromSavings={formData.deduct_from_savings}
+						bondSettings={formData.bond_settings ? formData.bond_settings : null}
 						onNameChange={(value) => setFormData({ ...formData, name: value })}
 						onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
 						onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
 						onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
 						onDeductFromSavingsChange={(value) => setFormData({ ...formData, deduct_from_savings: value })}
+						onCurrencyChange={(value) => setFormData({ ...formData, currency: value })}
+						onBondSettingsChange={(settings) => setFormData({ ...formData, bond_settings: settings })}
 					/>
 				);
 
@@ -189,7 +196,9 @@ const Dashboard: React.FC = () => {
 						currency={formData.currency}
 						deductFromSavings={formData.deduct_from_savings}
 						onNameChange={(value) => setFormData({ ...formData, name: value })}
-						onSymbolChange={(symbol, exchange, name, currency) => setFormData({ ...formData, symbol, exchange, name, currency })}
+						onSymbolChange={(symbol, exchange, name, currency) =>
+							setFormData({ ...formData, symbol, exchange, name, currency })
+						}
 						onPurchasePriceChange={(value) => setFormData({ ...formData, purchase_price: value })}
 						onQuantityChange={(value) => setFormData({ ...formData, quantity: value })}
 						onPurchaseDateChange={(value) => setFormData({ ...formData, purchase_date: value })}
@@ -274,7 +283,7 @@ const Dashboard: React.FC = () => {
 
 			<Container size="xl" style={{ position: "relative", zIndex: 1 }} py={40}>
 				<DashboardHeader assets={assets} />
-				<PortfolioSummary assets={assets} />
+				<PortfolioSummary />
 
 				{/* Assets Section */}
 				<Stack gap="lg">

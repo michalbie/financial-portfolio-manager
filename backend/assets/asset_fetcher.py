@@ -60,7 +60,8 @@ class TwelveDataProvider():
     async def get_currency_exchange_rates(self) -> List[Dict]:
         """Fetch list of currency exchange rates from TwelveData"""
         async with httpx.AsyncClient(timeout=30.0) as client:
-            symbols = ["USD/EUR", "EUR/USD", "USD/GBP", "GBP/USD"]
+            symbols = ["USD/EUR", "EUR/USD", "USD/GBP",
+                       "GBP/USD", "USD/PLN", "PLN/USD"]
             currency_data = []
 
             for symbol in symbols:

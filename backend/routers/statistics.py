@@ -17,6 +17,7 @@ class StatisticResponse(BaseModel):
     user_id: int
     date: datetime
     total_portfolio_value: float
+    portfolio_distribution: dict
     created_at: datetime
     updated_at: datetime
 

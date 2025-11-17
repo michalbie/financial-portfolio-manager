@@ -3,6 +3,7 @@ export interface StatisticsResponse {
 	user_id: number;
 	date: string;
 	total_portfolio_value: number;
+	portfolio_distribution: Record<string, number>;
 	created_at: string;
 	updated_at: string;
 }

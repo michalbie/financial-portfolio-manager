@@ -45,11 +45,11 @@ export const SavingsDetailsForm: React.FC<SavingsDetailsFormProps> = ({
 			<Select
 				label="Currency"
 				placeholder="Select currency"
-				disabled
 				data={[
 					{ value: "USD", label: "USD - US Dollar" },
 					{ value: "EUR", label: "EUR - Euro" },
 					{ value: "GBP", label: "GBP - British Pound" },
+					{ value: "PLN", label: "PLN - Polish Zloty" },
 				]}
 				styles={inputStyles}
 				value={currency}
@@ -61,7 +61,6 @@ export const SavingsDetailsForm: React.FC<SavingsDetailsFormProps> = ({
 				placeholder="Total amount of savings"
 				value={purchasePrice}
 				onChange={(value) => onPurchasePriceChange(Number(value) || 0)}
-				prefix="$"
 				thousandSeparator=","
 				decimalScale={2}
 				required

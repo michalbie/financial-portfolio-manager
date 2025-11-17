@@ -32,6 +32,7 @@ export interface Asset {
 	created_at: string;
 	updated_at: string;
 	status: AssetStatus;
+	bond_settings?: BondSettings | null;
 }
 
 export interface AssetCreate {
@@ -45,6 +46,7 @@ export interface AssetCreate {
 	quantity?: number;
 	exchange?: string;
 	deduct_from_savings: boolean;
+	bond_settings?: BondSettings | null;
 }
 
 export interface AssetUpdate {
@@ -57,6 +59,15 @@ export interface AssetUpdate {
 	purchase_date?: string;
 	quantity?: number;
 	exchange?: string;
+	bond_settings?: BondSettings | null;
+}
+
+export interface BondSettings {
+	capitalizationOfInterest: boolean;
+	capitalizationFrequency: number | null;
+	maturityDate: string | null;
+	interestRateResetFrequency: number | null;
+	interestRates: Record<number, { rate: number }>;
 }
 
 export interface StockSearchResult {
@@ -65,7 +76,7 @@ export interface StockSearchResult {
 		symbol: string;
 		name: string;
 		exchange: string;
-		mic_code: string; // ← MIC code
+		mic_code: string;
 		country: string;
 		currency: string;
 	}[];

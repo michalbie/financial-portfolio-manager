@@ -50,6 +50,7 @@ async def update_user_portfolio_value(user_id: int) -> None:
         assets = result.scalars().all()
 
         total_value = 0.0
+        portfolio_distribution = {}
 
         for asset in assets:
             asset_price = asset.current_price if asset.current_price is not None else asset.purchase_price
@@ -57,9 +58,13 @@ async def update_user_portfolio_value(user_id: int) -> None:
             if asset.currency and asset.currency != "USD":
                 total_value += translate_currency(
                     asset.currency, "USD", asset_price * asset.quantity)
+                portfolio_distribution[asset.type] = portfolio_distribution.get(asset.type, 0) + translate_currency(
+                    asset.currency, "USD", asset_price * asset.quantity)
 
             else:
                 total_value += asset_price * asset.quantity
+                portfolio_distribution[asset.type] = portfolio_distribution.get(
+                    asset.type, 0) + (asset_price * asset.quantity)
 
         last_statistic = await async_db.execute(
             select(Statistic)
@@ -77,7 +82,8 @@ async def update_user_portfolio_value(user_id: int) -> None:
         statistic = Statistic(
             user_id=user_id,
             date=datetime.utcnow(),
-            total_portfolio_value=total_value
+            total_portfolio_value=total_value,
+            portfolio_distribution=portfolio_distribution
         )
 
         async_db.add(statistic)
