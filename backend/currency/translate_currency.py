@@ -15,4 +15,6 @@ def translate_currency(source_currency_code: str, target_currency_code: str, amo
         raise ValueError(
             f"Exchange rate from {source_currency_code} to {target_currency_code} not found")
 
+    db.close()
+
     return rate.rate * amount

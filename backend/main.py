@@ -17,9 +17,8 @@ from scheduler.scheduler import initialize_scheduler
 
 app = FastAPI()
 
+
 # Initialize database on startup
-
-
 @app.on_event("startup")
 async def startup_event():
     print("🚀 Initializing database...")

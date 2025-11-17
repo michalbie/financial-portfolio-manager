@@ -123,7 +123,5 @@ async def update_bonds_prices(async_db: AsyncSession, assets: List[Asset]) -> No
         )
 
         asset.current_price = new_price
-        print(
-            f"Updated bond asset id={asset.id} current_price={new_price}")
 
     await async_db.commit()
