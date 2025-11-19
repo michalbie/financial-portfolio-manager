@@ -226,3 +226,23 @@ class Statistic(Base):
     __table_args__ = (
         Index('idx_user_date', 'user_id', 'date', unique=True),
     )
+
+
+class BankHistory(Base):
+    __tablename__ = "bank_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey(
+        'users.id', ondelete='CASCADE'), nullable=False)
+    # correlated savings asset
+    asset_id = Column(Integer, ForeignKey(
+        'assets.id', ondelete='SET NULL'), nullable=True)
+
+    date_start = Column(Date, nullable=False, index=True)
+    date_end = Column(Date, nullable=False, index=True)
+    incomes = Column(Float, nullable=False)
+    expenses = Column(Float, nullable=False)
+    final_balance = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
