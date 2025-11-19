@@ -271,8 +271,7 @@ async def close_asset(
                 profit = max(
                     0.0, (unit_price - asset.purchase_price) * quantity)
                 taxed_profit = profit * tax
-                gross_value = taxed_profit + \
-                    (asset.purchase_price * quantity - profit)
+                gross_value = unit_price * quantity - taxed_profit
 
                 # Translate currency if needed
                 try:
