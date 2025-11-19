@@ -1,4 +1,4 @@
-import { Button, Checkbox, Modal, Tooltip } from "@mantine/core";
+import { Button, Checkbox, Modal, NumberInput, Tooltip } from "@mantine/core";
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { closeAsset, type Asset } from "../../api/assets";
@@ -6,18 +6,19 @@ import { closeAsset, type Asset } from "../../api/assets";
 interface ClosePositionModalProps {
 	opened: boolean;
 	setOpened: (opened: boolean) => void;
-	onClosePosition: (id: number, transferToSavings: boolean) => void;
+	onClosePosition: (id: number, taxFromProfit: number, transferToSavings: boolean) => void;
 	asset: Asset;
 }
 
 const ClosePositionModal: React.FC<ClosePositionModalProps> = ({ opened, setOpened, onClosePosition, asset }) => {
 	const { user } = useAuth();
 	const [transferToSavings, setTransferToSavings] = useState<boolean>(true);
+	const [taxFromProfit, setTaxFromProfit] = useState<number>(0);
 
 	const hasPrimarySavingsAccount = user?.user_settings?.primary_saving_asset_id;
 
 	const handleClosePosition = () => {
-		onClosePosition(asset.id, transferToSavings);
+		onClosePosition(asset.id, taxFromProfit / 100, transferToSavings);
 		setOpened(false);
 	};
 
@@ -28,6 +29,16 @@ const ClosePositionModal: React.FC<ClosePositionModalProps> = ({ opened, setOpen
 				disabled={!hasPrimarySavingsAccount}
 				checked={transferToSavings}
 				onChange={(e) => setTransferToSavings(e.currentTarget.checked)}
+			/>
+
+			<NumberInput
+				label={"Tax from profit (%)"}
+				value={taxFromProfit}
+				min={0}
+				max={100}
+				onChange={(value) => {
+					setTaxFromProfit(typeof value === "number" ? value : parseFloat(value));
+				}}
 			/>
 
 			<Tooltip

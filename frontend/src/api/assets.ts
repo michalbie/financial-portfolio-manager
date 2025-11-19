@@ -150,9 +150,9 @@ export function deleteAsset(assetId: number) {
 }
 
 // Close asset
-export function closeAsset(assetId: number, transferToSavings: boolean) {
+export function closeAsset(assetId: number, taxFromProfit: number, transferToSavings: boolean) {
 	return makeSafeRequest<{ message: string }>(`assets/${assetId}/close`, "POST", {
-		payload: { transferToSavings },
+		payload: { tax_from_profit: taxFromProfit, transfer_to_savings: transferToSavings },
 		onSuccessMessage: "Stock position closed successfully!",
 		onErrorMessage: "Failed to close stock position.",
 	});

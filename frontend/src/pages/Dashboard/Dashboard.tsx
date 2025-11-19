@@ -85,9 +85,9 @@ const Dashboard: React.FC = () => {
 		}
 	};
 
-	const onClosePosition = async (id: number, transferToSavings: boolean) => {
+	const onClosePosition = async (id: number, taxFromProfit: number, transferToSavings: boolean) => {
 		if (window.confirm("Are you sure you want to close this position?")) {
-			const result = await closeAsset(id, transferToSavings);
+			const result = await closeAsset(id, taxFromProfit, transferToSavings);
 			if (result) {
 				await loadAssets();
 			}

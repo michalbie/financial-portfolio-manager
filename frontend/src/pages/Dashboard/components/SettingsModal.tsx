@@ -45,6 +45,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ opened, setOpened, assets
 						color: "green",
 					});
 					setOpened(false);
+					window.location.reload();
 				})
 				.catch((error) => {
 					console.error("Failed to update user settings:", error);
@@ -60,10 +61,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ opened, setOpened, assets
 	return (
 		<Modal opened={opened} onClose={() => setOpened(false)} title="Settings">
 			{/* Form to change settings */}
-			<TextInput
+			<Select
 				label="Currency"
+				placeholder="Select currency"
+				data={[
+					{ value: "USD", label: "USD - US Dollar" },
+					{ value: "EUR", label: "EUR - Euro" },
+					{ value: "GBP", label: "GBP - British Pound" },
+					{ value: "PLN", label: "PLN - Polish Zloty" },
+				]}
 				value={userSettings?.currency}
-				onChange={(event) => setUserSettings({ ...userSettings, currency: event.currentTarget.value })}
+				onChange={(value) => setUserSettings({ ...userSettings, currency: value || "USD" })}
 			/>
 
 			<Select

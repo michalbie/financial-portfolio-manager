@@ -68,6 +68,7 @@ class AssetResponse(BaseModel):
 
 
 class AssetCloseRequest(BaseModel):
+    tax_from_profit: float
     transfer_to_savings: bool = True
 
     class Config:
@@ -261,7 +262,12 @@ async def close_asset(
                 unit_price = asset.current_price if asset.current_price is not None else (
                     asset.purchase_price or 0.0)
                 quantity = asset.quantity or 0.0
-                gross_value = unit_price * quantity
+                tax = request.tax_from_profit or 1.0
+                profit = max(
+                    0.0, (unit_price - asset.purchase_price) * quantity)
+                taxed_profit = profit * tax
+                gross_value = taxed_profit + \
+                    (asset.purchase_price * quantity - profit)
 
                 # Translate currency if needed
                 try:

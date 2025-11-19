@@ -4,6 +4,7 @@ import type { Asset } from "../../../api/assets";
 import getGrowthPercent from "../../../common/getGrowthPercent";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { getMyStatistics } from "../../../api/stats";
+import { useAuth } from "../../../context/AuthContext";
 
 interface PortfolioSummaryProps {}
 
@@ -36,7 +37,7 @@ const CustomLineTooltip = ({ active, payload }: any) => {
 					{payload[0].payload.fullDateTime}
 				</Text>
 				<Text size="sm" style={{ color: "#3b82f6" }}>
-					${payload[0].value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+					{payload[0].value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 				</Text>
 			</Box>
 		);
@@ -45,7 +46,7 @@ const CustomLineTooltip = ({ active, payload }: any) => {
 };
 
 // Custom tooltip for pie chart
-const CustomPieTooltip = ({ active, payload }: any) => {
+const CustomPieTooltip = ({ user, active, payload }: any) => {
 	if (active && payload && payload.length) {
 		return (
 			<Box
@@ -61,7 +62,8 @@ const CustomPieTooltip = ({ active, payload }: any) => {
 					{payload[0].name}
 				</Text>
 				<Text size="sm" style={{ color: payload[0].payload.fill }}>
-					${payload[0].value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+					{user?.user_settings.currency}{" "}
+					{payload[0].value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 				</Text>
 				<Text size="xs" style={{ color: "rgba(255,255,255,0.6)" }}>
 					{payload[0].payload.percentage}%
@@ -97,8 +99,8 @@ const renderLegend = (props: any) => {
 };
 
 export const PortfolioSummary: React.FC<PortfolioSummaryProps> = () => {
+	const { user } = useAuth();
 	const [portfolioStatistics, setPortfolioStatistics] = useState<PortfolioStat[]>([]);
-
 	const portfolioDistribution = portfolioStatistics[portfolioStatistics.length - 1]?.portfolio_distribution || {};
 
 	// Calculate total for percentages
@@ -198,7 +200,8 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = () => {
 							lineHeight: 1,
 						}}
 					>
-						${totalNetWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+						{user?.user_settings.currency}{" "}
+						{totalNetWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 					</Title>
 					<Text
 						size="lg"
@@ -255,7 +258,7 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = () => {
 										tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
 										axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
 										tickLine={{ stroke: "rgba(255,255,255,0.1)" }}
-										tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+										tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
 									/>
 									<Tooltip content={<CustomLineTooltip />} />
 									<Line
@@ -305,7 +308,7 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = () => {
 												<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
 											))}
 										</Pie>
-										<Tooltip content={<CustomPieTooltip />} />
+										<Tooltip content={<CustomPieTooltip user={user} />} />
 										<Legend content={renderLegend} />
 									</PieChart>
 								</ResponsiveContainer>

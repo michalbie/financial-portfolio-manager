@@ -14,7 +14,7 @@ interface AssetCardProps {
 	};
 	onEdit: (asset: Asset) => void;
 	onDelete: (id: number) => void;
-	onClosePosition: (id: number, transferToSavings: boolean) => void;
+	onClosePosition: (id: number, taxFromProfit: number, transferToSavings: boolean) => void;
 }
 
 export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, onDelete, onClosePosition }) => {
@@ -67,7 +67,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, assetType, onEdit, 
 									Edit
 								</Menu.Item>
 							)}
-							{asset.type === "stocks" && (
+							{(asset.type === "stocks" || asset.type === "crypto" || asset.type === "bonds") && (
 								<>
 									<Menu.Item
 										leftSection={<IconCash size={16} />}
