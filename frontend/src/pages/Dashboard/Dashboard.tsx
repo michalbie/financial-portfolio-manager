@@ -40,11 +40,12 @@ const Dashboard: React.FC = () => {
 		symbol: "",
 		mic_code: "",
 		purchase_price: 0,
+		current_price: undefined,
 		currency: "USD",
 		purchase_date: new Date().toISOString(),
 		exchange: undefined,
 		quantity: 1,
-		deduct_from_savings: hasPrimarySavingsAccount ? true : false,
+		deduct_from_savings: false,
 		bond_settings: null,
 	});
 
@@ -103,10 +104,11 @@ const Dashboard: React.FC = () => {
 			mic_code: asset.mic_code,
 			currency: asset.currency || "USD",
 			purchase_price: asset.purchase_price,
+			current_price: asset.current_price,
 			purchase_date: asset.purchase_date,
 			exchange: asset.exchange,
 			quantity: asset.quantity,
-			deduct_from_savings: hasPrimarySavingsAccount ? true : false,
+			deduct_from_savings: false,
 			bond_settings: asset.bond_settings || null,
 		});
 		setActiveStep(1);
@@ -120,11 +122,12 @@ const Dashboard: React.FC = () => {
 			symbol: "",
 			mic_code: "",
 			purchase_price: 0,
+			current_price: undefined,
 			currency: "USD",
 			purchase_date: new Date().toISOString(),
 			exchange: undefined,
 			quantity: 1,
-			deduct_from_savings: hasPrimarySavingsAccount ? true : false,
+			deduct_from_savings: false,
 			bond_settings: null,
 		});
 		setActiveStep(0);
@@ -238,7 +241,9 @@ const Dashboard: React.FC = () => {
 							}}
 						/>
 						<CommonAssetFields
+							assetType={formData.type}
 							purchasePrice={formData.purchase_price}
+							currentPrice={formData.current_price}
 							quantity={formData.quantity || 1}
 							purchaseDate={formData.purchase_date || new Date().toISOString()}
 							currency={formData.currency}
@@ -248,6 +253,7 @@ const Dashboard: React.FC = () => {
 							deductFromSavings={formData.deduct_from_savings}
 							onDeductFromSavingsChange={(value: boolean) => setFormData({ ...formData, deduct_from_savings: value })}
 							onCurrencyChange={(value: string) => setFormData({ ...formData, currency: value })}
+							setCurrentPrice={(value: number) => setFormData({ ...formData, current_price: value })}
 						/>
 					</Stack>
 				);

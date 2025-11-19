@@ -25,6 +25,7 @@ class AssetCreate(BaseModel):
     mic_code: Optional[str] = None  # ← MIC code
     currency: Optional[str] = None
     purchase_price: float
+    current_price: Optional[float] = None
     purchase_date: Optional[datetime] = None
     exchange: Optional[str] = None
     quantity: Optional[float] = 1.0
@@ -39,6 +40,7 @@ class AssetUpdate(BaseModel):
     mic_code: str | None = None  # ← MIC code
     currency: str | None = None
     purchase_price: float | None = None
+    current_price: float | None = None
     purchase_date: datetime | None = None
     exchange: str | None = None
     quantity: float | None = None
@@ -135,6 +137,7 @@ async def create_asset(
         mic_code=asset_data.mic_code,
         currency=asset_data.currency,
         purchase_price=asset_data.purchase_price,
+        current_price=asset_data.current_price,
         purchase_date=asset_data.purchase_date or datetime.utcnow(),
         quantity=asset_data.quantity or 1.0,
         exchange=asset_data.exchange or None,
@@ -188,6 +191,8 @@ async def update_asset(
         asset.mic_code = asset_data.mic_code
     if asset_data.purchase_price is not None:
         asset.purchase_price = asset_data.purchase_price
+    if asset_data.current_price is not None:
+        asset.current_price = asset_data.current_price
     if asset_data.currency is not None:
         asset.currency = asset_data.currency
     if asset_data.purchase_date is not None:

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Accordion, Box, Checkbox, Divider, NumberInput, Select, Stack, Text, TextInput } from "@mantine/core";
 import { CommonAssetFields } from "../common/CommonAssetFields";
 import { DatePicker, DateTimePicker } from "@mantine/dates";
-import type { BondSettings } from "../../api/assets";
+import { AssetType, type BondSettings } from "../../api/assets";
 
 interface BondsDetailsFormProps {
 	name: string;
@@ -214,6 +214,7 @@ export const BondsDetailsForm: React.FC<BondsDetailsFormProps> = ({
 			</Accordion>
 
 			<CommonAssetFields
+				assetType={AssetType.BONDS}
 				purchasePrice={purchasePrice}
 				quantity={quantity}
 				purchaseDate={purchaseDate}

@@ -4,7 +4,9 @@ import { DateTimePicker } from "@mantine/dates";
 import { useAuth } from "../../context/AuthContext";
 
 interface CommonAssetFieldsProps {
+	assetType: string;
 	purchasePrice: number;
+	currentPrice?: number;
 	quantity: number;
 	purchaseDate: string;
 	deductFromSavings: boolean;
@@ -14,6 +16,7 @@ interface CommonAssetFieldsProps {
 	onPurchaseDateChange: (value: string) => void;
 	onDeductFromSavingsChange: (value: boolean) => void;
 	onCurrencyChange: (value: string) => void;
+	setCurrentPrice?: (value: number) => void;
 }
 
 const inputStyles = {
@@ -26,7 +29,9 @@ const inputStyles = {
 };
 
 export const CommonAssetFields: React.FC<CommonAssetFieldsProps> = ({
+	assetType,
 	purchasePrice,
+	currentPrice,
 	quantity,
 	purchaseDate,
 	deductFromSavings,
@@ -36,6 +41,7 @@ export const CommonAssetFields: React.FC<CommonAssetFieldsProps> = ({
 	onPurchaseDateChange,
 	onDeductFromSavingsChange,
 	onCurrencyChange,
+	setCurrentPrice,
 }) => {
 	const { user } = useAuth();
 	const hasPrimarySavingsAccount = user?.user_settings?.primary_saving_asset_id;
@@ -66,6 +72,17 @@ export const CommonAssetFields: React.FC<CommonAssetFieldsProps> = ({
 				required
 				styles={inputStyles}
 			/>
+
+			{assetType !== "stocks" && assetType !== "crypto" && assetType !== "bonds" && (
+				<NumberInput
+					label="Current Price"
+					placeholder="Current price per unit"
+					value={currentPrice}
+					onChange={(value) => setCurrentPrice?.(Number(value) || 0)}
+					required
+					styles={inputStyles}
+				/>
+			)}
 
 			<NumberInput
 				label="Quantity"

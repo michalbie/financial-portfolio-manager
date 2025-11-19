@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Stack, TextInput, Select, Loader } from "@mantine/core";
-import { searchCryptoBySymbol } from "../../api/assets";
+import { AssetType, searchCryptoBySymbol } from "../../api/assets";
 import { CommonAssetFields } from "../common/CommonAssetFields";
 
 interface CryptoOption {
@@ -183,6 +183,7 @@ export const CryptoDetailsForm: React.FC<CryptoDetailsFormProps> = ({
 			<TextInput label="Asset Name" value={name} onChange={(e) => onNameChange(e.target.value)} required styles={inputStyles} />
 
 			<CommonAssetFields
+				assetType={AssetType.CRYPTO}
 				purchasePrice={purchasePrice}
 				quantity={quantity}
 				purchaseDate={purchaseDate}

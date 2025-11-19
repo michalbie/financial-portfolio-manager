@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Stack, TextInput, Select, Loader } from "@mantine/core";
-import { searchStocksBySymbol } from "../../api/assets";
+import { AssetType, searchStocksBySymbol } from "../../api/assets";
 import { CommonAssetFields } from "../common/CommonAssetFields";
 
 interface StockOption {
@@ -161,6 +161,7 @@ export const StockDetailsForm: React.FC<StockDetailsFormProps> = ({
 			<TextInput label="Asset Name" value={name} onChange={(e) => onNameChange(e.target.value)} required styles={inputStyles} />
 
 			<CommonAssetFields
+				assetType={AssetType.STOCKS}
 				purchasePrice={purchasePrice}
 				quantity={quantity}
 				purchaseDate={purchaseDate}
