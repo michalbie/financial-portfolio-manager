@@ -1,4 +1,3 @@
-// FILE LOCATION: frontend/src/pages/Dashboard/components/ForecastSection.tsx
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Box, Stack, Text, Title, NumberInput, Group, Paper, Button, Checkbox } from "@mantine/core";

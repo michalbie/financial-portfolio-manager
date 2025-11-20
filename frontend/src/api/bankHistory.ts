@@ -1,4 +1,3 @@
-// FILE LOCATION: frontend/src/api/bankHistory.ts
 
 import { makeSafeRequest } from "../common/makeSafeRequest";
 

@@ -1,5 +1,3 @@
-// FILE LOCATION: frontend/src/pages/Dashboard/components/BankHistoryModal.tsx
-// REPLACE THE ENTIRE FILE
 
 import React, { useState, useEffect } from "react";
 import { Modal, Stack, Button, Select, Text, Table, Box, Group, ActionIcon, Loader } from "@mantine/core";

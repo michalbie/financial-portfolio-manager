@@ -1,5 +1,3 @@
-// FILE LOCATION: frontend/src/common/makeRequest.ts
-// REPLACE THE ENTIRE FILE
 
 import { getAPIEndpoint } from "./getAPIEndpoint";
 

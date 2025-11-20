@@ -1,5 +1,3 @@
-// FILE LOCATION: frontend/src/pages/Dashboard/components/DashboardHeader.tsx
-// (Replace the existing DashboardHeader.tsx with this updated version)
 
 import React, { useState } from "react";
 import { Group, Stack, Text, Title, Button } from "@mantine/core";

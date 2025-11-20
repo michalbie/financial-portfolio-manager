@@ -1,6 +1,4 @@
 """
-FILE LOCATION: backend/routers/bank_history.py
-
 Bank History Router - Handle CSV uploads for transaction history
 """
 
