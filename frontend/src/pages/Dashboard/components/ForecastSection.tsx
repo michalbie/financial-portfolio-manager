@@ -1,22 +1,25 @@
+// FILE LOCATION: frontend/src/pages/Dashboard/components/ForecastSection.tsx
+
 import React, { useState, useEffect, useMemo } from "react";
 import { Box, Stack, Text, Title, NumberInput, Group, Paper, Button, Checkbox } from "@mantine/core";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { IconChartLine, IconRefresh } from "@tabler/icons-react";
 import { getMyStatistics } from "../../../api/stats";
 import { useAuth } from "../../../context/AuthContext";
 
-interface ForecastDataPoint {
-	date: string;
-	projectedValue: number;
-	nominalValue?: number;
-	historicalValue?: number;
-	displayDate: string;
+interface YearlyBreakdown {
+	year: number;
+	displayYear: string;
+	laborIncome: number;
+	capitalGains: number;
+	totalWealth: number;
 }
 
 interface ForecastSectionProps {}
 
-const CustomForecastTooltip = ({ active, payload, user }: any) => {
+const CustomYearlyTooltip = ({ active, payload, user }: any) => {
 	if (active && payload && payload.length) {
+		const data = payload[0].payload;
 		return (
 			<Box
 				style={{
@@ -28,14 +31,18 @@ const CustomForecastTooltip = ({ active, payload, user }: any) => {
 				}}
 			>
 				<Text size="sm" fw={500} style={{ color: "white", marginBottom: "8px" }}>
-					{payload[0].payload.displayDate}
+					Year {data.displayYear}
 				</Text>
-				{payload.map((entry: any, index: number) => (
-					<Text key={index} size="sm" style={{ color: entry.color, marginBottom: "4px" }}>
-						{entry.name}: {user?.user_settings.currency}{" "}
-						{entry.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-					</Text>
-				))}
+				<Text size="sm" style={{ color: "#3b82f6", marginBottom: "4px" }}>
+					Labor Income: {user?.user_settings.currency} {data.laborIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+				</Text>
+				<Text size="sm" style={{ color: "#8b5cf6", marginBottom: "4px" }}>
+					Capital Gains: {user?.user_settings.currency}{" "}
+					{data.capitalGains.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+				</Text>
+				<Text size="sm" style={{ color: "#10b981", marginTop: "4px" }}>
+					Total Wealth: {user?.user_settings.currency} {data.totalWealth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+				</Text>
 			</Box>
 		);
 	}
@@ -49,11 +56,11 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 
 	// Forecast parameters
 	const [yearsAhead, setYearsAhead] = useState(10);
-	const [monthlyGrowthRate, setMonthlyGrowthRate] = useState<number | string>(0);
+	const [annualGrowthRate, setAnnualGrowthRate] = useState<number | string>(0);
 	const [useCalculatedRate, setUseCalculatedRate] = useState(true);
 	const [inflationRate, setInflationRate] = useState(2.5);
 	const [monthlySavings, setMonthlySavings] = useState<number | string>(0);
-	const [showNominal, setShowNominal] = useState(false); // Toggle for nominal vs real values
+	const [annualSalaryIncrease, setAnnualSalaryIncrease] = useState<number | string>(2.5);
 
 	useEffect(() => {
 		loadData();
@@ -65,15 +72,15 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 		if (data) {
 			setPortfolioStatistics(data);
 
-			// Calculate default monthly growth rate from historical data
-			const calculatedGrowth = calculateHistoricalMonthlyGrowth(data);
+			const calculatedMonthlyGrowth = calculateHistoricalMonthlyGrowth(data);
+			// Convert monthly to annual: (1 + monthly)^12 - 1
+			const calculatedAnnualGrowth = (Math.pow(1 + calculatedMonthlyGrowth / 100, 12) - 1) * 100;
 			if (useCalculatedRate) {
-				setMonthlyGrowthRate(calculatedGrowth);
+				setAnnualGrowthRate(calculatedAnnualGrowth.toFixed(2));
 			}
 
-			// Set default monthly savings from user settings
 			if (user?.user_settings?.salary_per_month) {
-				setMonthlySavings(user.user_settings.salary_per_month * 0.2); // Assume 20% savings rate
+				setMonthlySavings(user.user_settings.salary_per_month * 0.8);
 			}
 		}
 		setLoading(false);
@@ -82,12 +89,11 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 	const calculateHistoricalMonthlyGrowth = (stats: any[]): number => {
 		if (stats.length < 2) return 0;
 
-		// Filter out same-day duplicates - keep only one entry per day
 		const uniqueDayStats: any[] = [];
 		const seenDates = new Set<string>();
 
 		for (const stat of stats) {
-			const dateKey = new Date(stat.date).toISOString().split("T")[0]; // YYYY-MM-DD
+			const dateKey = new Date(stat.date).toISOString().split("T")[0];
 			if (!seenDates.has(dateKey)) {
 				seenDates.add(dateKey);
 				uniqueDayStats.push(stat);
@@ -96,7 +102,6 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 
 		if (uniqueDayStats.length < 2) return 0;
 
-		// Use only stats that are at least 7 days apart to avoid artificial spikes
 		const filteredStats: any[] = [uniqueDayStats[0]];
 
 		for (let i = 1; i < uniqueDayStats.length; i++) {
@@ -110,11 +115,9 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 		}
 
 		if (filteredStats.length < 2) {
-			// If no stats are 7+ days apart, just use first and last unique
 			filteredStats.push(uniqueDayStats[uniqueDayStats.length - 1]);
 		}
 
-		// Calculate month-to-month growth rates, excluding outliers
 		const monthlyRates: number[] = [];
 
 		for (let i = 1; i < filteredStats.length; i++) {
@@ -130,7 +133,6 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 				const growthRate = ((currentValue - prevValue) / prevValue) * 100;
 				const monthlyRate = growthRate / monthsDiff;
 
-				// Filter out extreme outliers (>50% in one period suggests adding/removing assets)
 				if (Math.abs(growthRate) < 50) {
 					monthlyRates.push(monthlyRate);
 				}
@@ -138,7 +140,6 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 		}
 
 		if (monthlyRates.length === 0) {
-			// Fallback: use simple average between first and last
 			const firstValue = filteredStats[0].total_portfolio_value;
 			const lastValue = filteredStats[filteredStats.length - 1].total_portfolio_value;
 			const startDate = new Date(filteredStats[0].date);
@@ -153,117 +154,90 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 			return 0;
 		}
 
-		// Calculate median (more robust than average for outliers)
 		monthlyRates.sort((a, b) => a - b);
 		const medianRate =
 			monthlyRates.length % 2 === 0
 				? (monthlyRates[monthlyRates.length / 2 - 1] + monthlyRates[monthlyRates.length / 2]) / 2
 				: monthlyRates[Math.floor(monthlyRates.length / 2)];
 
-		// Cap at reasonable values (-10% to +10% per month)
 		const cappedRate = Math.max(-10, Math.min(10, medianRate));
 
 		return parseFloat(cappedRate.toFixed(2));
 	};
 
-	const forecastData = useMemo(() => {
+	// Calculate yearly breakdown with inflation adjustment and salary increases
+	const yearlyBreakdown = useMemo(() => {
 		if (portfolioStatistics.length === 0) return [];
 
-		const data: ForecastDataPoint[] = [];
-		const startDate = new Date();
-		const latestValue = portfolioStatistics[portfolioStatistics.length - 1].total_portfolio_value;
+		const breakdown: YearlyBreakdown[] = [];
+		const currentYear = new Date().getFullYear();
+		const currentValue = portfolioStatistics[portfolioStatistics.length - 1].total_portfolio_value;
 
-		let currentValue = latestValue;
-		const monthlyGrowth = typeof monthlyGrowthRate === "number" ? monthlyGrowthRate : parseFloat(monthlyGrowthRate.toString()) || 0;
+		// Convert annual growth rate to monthly
+		const annualGrowth = typeof annualGrowthRate === "number" ? annualGrowthRate : parseFloat(annualGrowthRate.toString()) || 0;
+		const monthlyGrowthDecimal = Math.pow(1 + annualGrowth / 100, 1 / 12) - 1;
+
 		const monthlySavingsAmount = typeof monthlySavings === "number" ? monthlySavings : parseFloat(monthlySavings.toString()) || 0;
 		const monthlyInflation = inflationRate / 12 / 100;
+		const annualSalaryIncreaseRate =
+			typeof annualSalaryIncrease === "number" ? annualSalaryIncrease : parseFloat(annualSalaryIncrease.toString()) || 0;
+		const annualSalaryIncreaseDecimal = annualSalaryIncreaseRate / 100;
 
-		// Validate growth rate is reasonable
-		if (Math.abs(monthlyGrowth) > 20) {
-			console.warn("Monthly growth rate exceeds 20%, results may be unrealistic");
-		}
+		// Year 0 (current year) - just current portfolio value, no additions yet
+		breakdown.push({
+			year: currentYear,
+			displayYear: currentYear.toString(),
+			laborIncome: 0,
+			capitalGains: 0,
+			totalWealth: currentValue,
+		});
 
-		// Add historical data points (last 12 months)
-		const historicalMonths = Math.min(12, portfolioStatistics.length);
-		for (let i = historicalMonths; i >= 0; i--) {
-			const stat = portfolioStatistics[portfolioStatistics.length - 1 - i];
-			if (stat) {
-				const date = new Date(stat.date);
-				data.push({
-					date: date.toISOString(),
-					historicalValue: stat.total_portfolio_value,
-					projectedValue: i === 0 ? stat.total_portfolio_value : (undefined as any),
-					displayDate: date.toLocaleDateString("en-US", { year: "numeric", month: "short" }),
-				});
-			}
-		}
+		let poolValue = currentValue;
+		let currentMonthlySavings = monthlySavingsAmount;
 
-		// Add forecast data points
-		const monthsToForecast = yearsAhead * 12;
-		for (let month = 1; month <= monthsToForecast; month++) {
-			const forecastDate = new Date(startDate);
-			forecastDate.setMonth(forecastDate.getMonth() + month);
+		// Start from year 1 onwards - add salary and grow
+		for (let year = 1; year <= yearsAhead; year++) {
+			const targetYear = currentYear + year;
+			const startOfYearPoolValue = poolValue;
 
-			// Apply compound growth to initial portfolio: FV = PV * (1 + r)^n
-			const growthMultiplier = Math.pow(1 + monthlyGrowth / 100, month);
-			currentValue = latestValue * growthMultiplier;
-
-			// Add monthly savings with compound growth
-			// Each monthly deposit grows for the remaining months
-			// Formula: FV = PMT × [((1 + r)^n - 1) / r]
-			// This is the future value of an annuity
-			if (monthlySavingsAmount > 0 && monthlyGrowth !== 0) {
-				// Future value of monthly deposits with compound growth
-				const savingsGrowthMultiplier = (Math.pow(1 + monthlyGrowth / 100, month) - 1) / (monthlyGrowth / 100);
-				const compoundedSavings = monthlySavingsAmount * savingsGrowthMultiplier;
-				currentValue += compoundedSavings;
-			} else if (monthlySavingsAmount > 0) {
-				// If growth rate is 0, just add simple sum
-				currentValue += monthlySavingsAmount * month;
+			// Apply annual salary increase at the start of each year (except year 1)
+			if (year > 1) {
+				currentMonthlySavings = currentMonthlySavings * (1 + annualSalaryIncreaseDecimal);
 			}
 
-			// Store nominal value
-			const nominalValue = currentValue;
+			const annualSavings = currentMonthlySavings * 12;
 
-			// Apply inflation discount to get real value (only if showNominal is false)
-			const inflationMultiplier = Math.pow(1 + monthlyInflation, month);
-			const realValue = showNominal ? nominalValue : nominalValue / inflationMultiplier;
+			// Simulate 12 months: each month add savings then grow the pool (all in nominal terms)
+			for (let m = 0; m < 12; m++) {
+				poolValue += currentMonthlySavings;
+				poolValue = poolValue * (1 + monthlyGrowthDecimal);
+			}
 
-			data.push({
-				date: forecastDate.toISOString(),
-				projectedValue: realValue,
-				nominalValue: nominalValue,
-				displayDate: forecastDate.toLocaleDateString("en-US", { year: "numeric", month: "short" }),
+			const nominalEndOfYearValue = poolValue;
+
+			// Capital gains in nominal terms = everything minus what we started with minus what we added
+			const nominalCapitalGains = nominalEndOfYearValue - startOfYearPoolValue - annualSavings;
+
+			// Store as nominal values (future dollars) to match reference implementation
+			breakdown.push({
+				year: targetYear,
+				displayYear: targetYear.toString(),
+				laborIncome: annualSavings,
+				capitalGains: nominalCapitalGains,
+				totalWealth: nominalEndOfYearValue,
 			});
 		}
 
-		return data;
-	}, [portfolioStatistics, yearsAhead, monthlyGrowthRate, inflationRate, monthlySavings]);
+		return breakdown;
+	}, [portfolioStatistics, yearsAhead, annualGrowthRate, monthlySavings, inflationRate, annualSalaryIncrease]);
 
-	const finalProjectedValue = forecastData[forecastData.length - 1]?.projectedValue || 0;
+	const finalProjectedValue = yearlyBreakdown[yearlyBreakdown.length - 1]?.totalWealth || 0;
 	const currentValue = portfolioStatistics[portfolioStatistics.length - 1]?.total_portfolio_value || 0;
 	const totalGrowth = currentValue > 0 ? ((finalProjectedValue - currentValue) / currentValue) * 100 : 0;
 
-	// Calculate breakdown for transparency
-	const monthlyGrowth = typeof monthlyGrowthRate === "number" ? monthlyGrowthRate : parseFloat(monthlyGrowthRate.toString()) || 0;
-	const monthlySavingsAmount = typeof monthlySavings === "number" ? monthlySavings : parseFloat(monthlySavings.toString()) || 0;
-	const monthsToForecast = yearsAhead * 12;
-
-	// Initial portfolio growth
-	const portfolioGrowthMultiplier = Math.pow(1 + monthlyGrowth / 100, monthsToForecast);
-	const portfolioFutureValue = currentValue * portfolioGrowthMultiplier;
-	const portfolioGrowthAmount = portfolioFutureValue - currentValue;
-
-	// Monthly savings growth
-	let savingsFutureValue = 0;
-	if (monthlySavingsAmount > 0 && monthlyGrowth !== 0) {
-		const savingsGrowthMultiplier = (Math.pow(1 + monthlyGrowth / 100, monthsToForecast) - 1) / (monthlyGrowth / 100);
-		savingsFutureValue = monthlySavingsAmount * savingsGrowthMultiplier;
-	} else if (monthlySavingsAmount > 0) {
-		savingsFutureValue = monthlySavingsAmount * monthsToForecast;
-	}
-	const totalContributions = monthlySavingsAmount * monthsToForecast;
-	const savingsGrowthAmount = savingsFutureValue - totalContributions;
+	// Calculate breakdown for display (using nominal/future values to match reference)
+	const totalContributions = yearlyBreakdown.slice(1).reduce((sum, year) => sum + year.laborIncome, 0);
+	const totalGains = finalProjectedValue - currentValue - totalContributions;
 
 	if (loading) {
 		return (
@@ -360,8 +334,7 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 						</Group>
 					</Stack>
 
-					{/* Growth Breakdown */}
-					{monthlySavingsAmount > 0 && (
+					{monthlySavings > 0 && (
 						<Box
 							p="md"
 							style={{
@@ -386,15 +359,6 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 									</Group>
 									<Group justify="space-between">
 										<Text size="xs" c="dimmed">
-											Portfolio Growth:
-										</Text>
-										<Text size="xs" fw={500} style={{ color: "#10b981" }}>
-											+{user?.user_settings.currency}{" "}
-											{portfolioGrowthAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-										</Text>
-									</Group>
-									<Group justify="space-between">
-										<Text size="xs" c="dimmed">
 											Your Contributions:
 										</Text>
 										<Text size="xs" fw={500} style={{ color: "#3b82f6" }}>
@@ -404,11 +368,11 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 									</Group>
 									<Group justify="space-between">
 										<Text size="xs" c="dimmed">
-											Growth on Contributions:
+											Growth on Everything:
 										</Text>
 										<Text size="xs" fw={500} style={{ color: "#8b5cf6" }}>
 											+{user?.user_settings.currency}{" "}
-											{savingsGrowthAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+											{totalGains.toLocaleString(undefined, { maximumFractionDigits: 0 })}
 										</Text>
 									</Group>
 									<Box
@@ -424,13 +388,13 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 										</Text>
 										<Text size="xs" fw={700} style={{ color: "white" }}>
 											{user?.user_settings.currency}{" "}
-											{(portfolioFutureValue + savingsFutureValue).toLocaleString(undefined, {
+											{finalProjectedValue.toLocaleString(undefined, {
 												maximumFractionDigits: 0,
 											})}
 										</Text>
 									</Group>
 									<Text size="xs" c="dimmed" fs="italic" mt="xs">
-										(Before inflation adjustment)
+										(Future dollar values)
 									</Text>
 								</Stack>
 							</Stack>
@@ -466,8 +430,7 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 						</Button>
 					</Group>
 
-					{/* Warning for unrealistic growth rates */}
-					{Math.abs(typeof monthlyGrowthRate === "number" ? monthlyGrowthRate : parseFloat(monthlyGrowthRate.toString())) > 5 && (
+					{Math.abs(typeof annualGrowthRate === "number" ? annualGrowthRate : parseFloat(annualGrowthRate.toString())) > 50 && (
 						<Box
 							p="md"
 							style={{
@@ -477,13 +440,12 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 							}}
 						>
 							<Text size="sm" style={{ color: "#f59e0b" }}>
-								⚠️ Warning: Growth rate above 5% per month (60% yearly) is very aggressive. Consider using more conservative
-								estimates for realistic projections. Typical stock market returns are 0.5-1% monthly (6-12% yearly).
+								⚠️ Warning: Growth rate above 50% per year is very aggressive. Typical stock market returns are 6-12%
+								annually.
 							</Text>
 						</Box>
 					)}
 
-					{/* Info about calculation */}
 					{portfolioStatistics.length > 0 && (
 						<Box
 							p="sm"
@@ -502,12 +464,12 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 												(1000 * 60 * 60 * 24 * 30.44)
 									  )
 									: 0}{" "}
-								months. Large deposits/withdrawals are filtered out to show organic growth only.
+								months.
 							</Text>
 						</Box>
 					)}
 
-					<Group grow>
+					<Group grow style={{ alignItems: "flex-start" }}>
 						<NumberInput
 							label="Years Ahead"
 							description="Forecast timeline"
@@ -528,11 +490,11 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 
 						<Box>
 							<NumberInput
-								label="Monthly Growth Rate (%)"
-								description="Investment returns only (stocks/bonds/crypto appreciation)"
-								value={monthlyGrowthRate}
+								label="Annual Growth Rate (%)"
+								description="Investment returns per year"
+								value={annualGrowthRate}
 								onChange={(value) => {
-									setMonthlyGrowthRate(value);
+									setAnnualGrowthRate(value);
 									setUseCalculatedRate(false);
 								}}
 								step={0.1}
@@ -556,7 +518,9 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 									const checked = e.currentTarget.checked;
 									setUseCalculatedRate(checked);
 									if (checked && portfolioStatistics.length > 0) {
-										setMonthlyGrowthRate(calculateHistoricalMonthlyGrowth(portfolioStatistics));
+										const monthlyGrowth = calculateHistoricalMonthlyGrowth(portfolioStatistics);
+										const calculatedAnnual = (Math.pow(1 + monthlyGrowth / 100, 12) - 1) * 100;
+										setAnnualGrowthRate(calculatedAnnual.toFixed(2));
 									}
 								}}
 								styles={{
@@ -585,120 +549,142 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 							}}
 						/>
 
-						<Box>
-							<NumberInput
-								label="Monthly Savings"
-								description="New deposits (will also grow at the growth rate)"
-								value={monthlySavings}
-								onChange={(value) => setMonthlySavings(value)}
-								min={0}
-								thousandSeparator=","
-								prefix={user?.user_settings.currency + " "}
-								styles={{
-									label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
-									description: { color: "rgba(255,255,255,0.4)" },
-									input: {
-										background: "rgba(255,255,255,0.05)",
-										border: "1px solid rgba(255,255,255,0.1)",
-										color: "white",
-									},
-								}}
-							/>
-							<Checkbox
-								mt="xs"
-								label="Show nominal values (ignore inflation)"
-								checked={showNominal}
-								onChange={(e) => setShowNominal(e.currentTarget.checked)}
-								styles={{
-									label: { color: "rgba(255,255,255,0.6)", fontSize: "12px" },
-								}}
-							/>
-						</Box>
+						<NumberInput
+							label="Annual Salary Increase (%)"
+							description="Expected yearly raise"
+							value={annualSalaryIncrease}
+							onChange={(value) => setAnnualSalaryIncrease(value)}
+							step={0.1}
+							decimalScale={2}
+							styles={{
+								label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
+								description: { color: "rgba(255,255,255,0.4)" },
+								input: {
+									background: "rgba(255,255,255,0.05)",
+									border: "1px solid rgba(255,255,255,0.1)",
+									color: "white",
+								},
+							}}
+						/>
 					</Group>
+
+					<NumberInput
+						label="Monthly Savings"
+						description="Current monthly contributions"
+						value={monthlySavings}
+						onChange={(value) => setMonthlySavings(value)}
+						min={0}
+						thousandSeparator=","
+						prefix={user?.user_settings.currency + " "}
+						styles={{
+							label: { color: "rgba(255,255,255,0.7)", marginBottom: "8px" },
+							description: { color: "rgba(255,255,255,0.4)" },
+							input: {
+								background: "rgba(255,255,255,0.05)",
+								border: "1px solid rgba(255,255,255,0.1)",
+								color: "white",
+							},
+						}}
+					/>
 				</Stack>
 			</Paper>
 
-			{/* Forecast Chart */}
-			<Paper
-				shadow="xs"
-				p="xl"
-				radius="lg"
-				style={{
-					background: "rgba(255,255,255,0.02)",
-					border: "1px solid rgba(59, 130, 246, 0.2)",
-					backdropFilter: "blur(20px)",
-				}}
-			>
-				<Stack gap="md">
-					<Title order={3} style={{ color: "white" }}>
-						Portfolio Growth Forecast
-					</Title>
-					<Text size="sm" c="dimmed">
-						Projected growth based on historical performance and your parameters
-						{showNominal ? " (nominal values - NOT adjusted for inflation)" : " (inflation-adjusted real values)"}
-					</Text>
+			{/* Yearly Stacked Bar Chart with Wealth Line */}
+			{yearlyBreakdown.length > 0 && (
+				<Paper
+					shadow="xs"
+					p="xl"
+					radius="lg"
+					style={{
+						background: "rgba(255,255,255,0.02)",
+						border: "1px solid rgba(59, 130, 246, 0.2)",
+						backdropFilter: "blur(20px)",
+					}}
+				>
+					<Stack gap="md">
+						<Title order={3} style={{ color: "white" }}>
+							Yearly Income & Growth Breakdown
+						</Title>
+						<Text size="sm" c="dimmed">
+							All values shown in future dollars. Labor income increases by{" "}
+							{typeof annualSalaryIncrease === "number" ? annualSalaryIncrease : parseFloat(annualSalaryIncrease.toString())}%
+							annually.
+						</Text>
 
-					<Box h={400}>
-						<ResponsiveContainer width="100%" height="100%">
-							<LineChart data={forecastData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-								<defs>
-									<linearGradient id="historicalGradient" x1="0" y1="0" x2="0" y2="1">
-										<stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-										<stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-									</linearGradient>
-									<linearGradient id="projectedGradient" x1="0" y1="0" x2="0" y2="1">
-										<stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-										<stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-									</linearGradient>
-								</defs>
-								<CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-								<XAxis
-									dataKey="displayDate"
-									tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
-									axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
-									tickLine={{ stroke: "rgba(255,255,255,0.1)" }}
-									interval="preserveStartEnd"
-									minTickGap={50}
-								/>
-								<YAxis
-									tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
-									axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
-									tickLine={{ stroke: "rgba(255,255,255,0.1)" }}
-									tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-								/>
-								<Tooltip content={<CustomForecastTooltip user={user} />} />
-								<Legend
-									wrapperStyle={{ paddingTop: "20px" }}
-									formatter={(value) => <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "12px" }}>{value}</span>}
-								/>
-								<Line
-									type="monotone"
-									dataKey="historicalValue"
-									stroke="#3b82f6"
-									strokeWidth={3}
-									name="Historical Value"
-									dot={false}
-									connectNulls
-									fillOpacity={1}
-									fill="url(#historicalGradient)"
-								/>
-								<Line
-									type="monotone"
-									dataKey="projectedValue"
-									stroke="#8b5cf6"
-									strokeWidth={3}
-									strokeDasharray="5 5"
-									name="Projected Value"
-									dot={false}
-									connectNulls
-									fillOpacity={1}
-									fill="url(#projectedGradient)"
-								/>
-							</LineChart>
-						</ResponsiveContainer>
-					</Box>
-				</Stack>
-			</Paper>
+						<Box h={500}>
+							<ResponsiveContainer width="100%" height="100%">
+								<ComposedChart data={yearlyBreakdown} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+									<defs>
+										<linearGradient id="laborGradient" x1="0" y1="0" x2="0" y2="1">
+											<stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+											<stop offset="95%" stopColor="#3b82f6" stopOpacity={0.6} />
+										</linearGradient>
+										<linearGradient id="capitalGradient" x1="0" y1="0" x2="0" y2="1">
+											<stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
+											<stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.6} />
+										</linearGradient>
+									</defs>
+									<CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+									<XAxis
+										dataKey="displayYear"
+										tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
+										axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
+										tickLine={{ stroke: "rgba(255,255,255,0.1)" }}
+									/>
+									<YAxis
+										yAxisId="left"
+										tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
+										axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
+										tickLine={{ stroke: "rgba(255,255,255,0.1)" }}
+										tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+									/>
+									<YAxis
+										yAxisId="right"
+										orientation="right"
+										tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
+										axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
+										tickLine={{ stroke: "rgba(255,255,255,0.1)" }}
+										tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+									/>
+									<Tooltip content={<CustomYearlyTooltip user={user} />} />
+									<Legend
+										wrapperStyle={{ paddingTop: "20px" }}
+										formatter={(value) => (
+											<span style={{ color: "rgba(255,255,255,0.7)", fontSize: "12px" }}>{value}</span>
+										)}
+									/>
+									<Bar
+										yAxisId="left"
+										dataKey="laborIncome"
+										stackId="income"
+										fill="url(#laborGradient)"
+										name="Labor Income"
+										radius={[0, 0, 0, 0]}
+									/>
+									<Bar
+										yAxisId="left"
+										dataKey="capitalGains"
+										stackId="income"
+										fill="url(#capitalGradient)"
+										name="Capital Gains"
+										radius={[8, 8, 0, 0]}
+									/>
+									<Line
+										yAxisId="right"
+										type="monotone"
+										dataKey="totalWealth"
+										stroke="#10b981"
+										strokeWidth={3}
+										name="Total Wealth"
+										dot={{ fill: "#10b981", r: 5, strokeWidth: 2, stroke: "rgba(10,10,10,1)" }}
+										activeDot={{ r: 7 }}
+									/>
+								</ComposedChart>
+							</ResponsiveContainer>
+						</Box>
+					</Stack>
+				</Paper>
+			)}
 		</Stack>
 	);
 };
