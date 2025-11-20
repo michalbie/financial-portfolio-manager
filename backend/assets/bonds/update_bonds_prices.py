@@ -38,6 +38,13 @@ def calculate_bond_value(
     Calculate current or maturity value of a bond with daily accrual,
     considering interest rate resets every interestRateResetsFrequency months.
     """
+
+    print("Calculating bond value with settings:", {
+        "purchase_price": purchase_price,
+        "maturity_date": maturity_date,
+        "calculating_maturity_value": calculate_maturity_value
+    })
+
     if not purchase_date or not maturity_date or not interest_rates:
         raise ValueError(
             "purchase_date, maturity_date, and interest_rates must be provided")
@@ -46,7 +53,7 @@ def calculate_bond_value(
     purchase_dt = datetime.fromisoformat(purchase_date.replace("Z", ""))
     maturity_dt = datetime.fromisoformat(maturity_date.replace("Z", ""))
 
-    end_dt = maturity_dt if calculate_maturity_value else datetime.now()
+    end_dt = maturity_dt if calculate_maturity_value else datetime.utcnow()
     if end_dt < purchase_dt:
         raise ValueError("End date is before purchase date")
 

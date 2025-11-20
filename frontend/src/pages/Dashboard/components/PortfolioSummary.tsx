@@ -146,6 +146,7 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = () => {
 			dateDisplay: dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
 			timeDisplay: dateObj.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
 			fullDateTime: dateObj.toLocaleString("en-US", {
+				year: "numeric",
 				month: "short",
 				day: "numeric",
 				hour: "2-digit",
@@ -252,6 +253,19 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = () => {
 											// Show date and time for better clarity
 											const date = new Date(value);
 											return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+										}}
+									/>
+									<XAxis
+										dataKey="fullDateTime"
+										xAxisId="year"
+										orientation="bottom"
+										height={20}
+										tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+										axisLine={false}
+										tickLine={false}
+										tickFormatter={(value) => {
+											const date = new Date(value);
+											return date.getFullYear().toString();
 										}}
 									/>
 									<YAxis

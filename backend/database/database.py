@@ -6,6 +6,7 @@ from database.models import Base
 import os
 
 # Sync engine (for existing code)
+print(os.getenv("DATABASE_URL"))
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://postgres:postgres@db:5432/mydb")
 

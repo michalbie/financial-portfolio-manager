@@ -288,7 +288,7 @@ const Dashboard: React.FC = () => {
 			/>
 
 			<Container size="xl" style={{ position: "relative", zIndex: 1 }} py={40}>
-				<DashboardHeader assets={assets} />
+				<DashboardHeader assets={assets} loadAssets={loadAssets} />
 				<PortfolioSummary />
 
 				{/* Assets Section */}

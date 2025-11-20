@@ -84,7 +84,7 @@ async def get_my_assets(
 ):
     """Get all assets for current user"""
     assets = await update_user_assets_prices(user.id)
-    await update_user_portfolio_value(user.id)
+    await update_user_portfolio_value(user.id, False)
 
     return assets
 

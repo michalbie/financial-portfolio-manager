@@ -5,6 +5,7 @@ import httpx
 from sqlalchemy import text, select
 from sqlalchemy.orm import Session
 
+from assets.bonds.update_bonds_prices import calculate_bond_value
 from database.database import AsyncSessionLocal, SessionLocal
 from database.models import Asset, AssetPrice, AssetType
 from assets.asset_fetcher import TwelveDataProvider
@@ -26,7 +27,7 @@ async def backfill_asset_prices(symbol: str, mic_code: str, exchange: str, purch
         f"📊 Backfilling prices for {symbol} on {mic_code} from {purchase_date}")
 
     provider = TwelveDataProvider()
-    now = datetime.now()
+    now = datetime.utcnow()
 
     async with AsyncSessionLocal() as db:
         try:
@@ -313,6 +314,67 @@ async def get_asset_price_history(
             }
             for price in prices
         ]
+
+
+async def get_asset_price_at_datetime(
+    asset_id: int,
+    target_datetime: datetime
+) -> float:
+    """
+    Get the asset price at or before the target_datetime.
+    """
+    async with AsyncSessionLocal() as db:
+        # Get asset details
+        result = await db.execute(
+            select(Asset)
+            .where(Asset.id == asset_id)
+        )
+        asset = result.scalar_one_or_none()
+
+        if not asset:
+            raise ValueError(
+                f"Asset with ID {asset_id} not found or missing symbol/mic_code/exchange")
+
+        if asset.type in [AssetType.STOCKS, AssetType.CRYPTO]:
+            # Get the latest price at or before target_datetime
+            result = await db.execute(
+                select(AssetPrice)
+                .where(AssetPrice.symbol == asset.symbol)
+                .where(AssetPrice.mic_code == asset.mic_code)
+                .where(AssetPrice.exchange == asset.exchange)
+                .where(AssetPrice.datetime <= target_datetime)
+                .order_by(AssetPrice.datetime.desc())
+                .limit(1)
+            )
+            price_record = result.scalar_one_or_none()
+
+            if not price_record:
+                raise ValueError(
+                    f"No price data found for asset {asset.symbol} on {asset.mic_code} before {target_datetime}")
+
+            return price_record.close
+
+        elif asset.type == AssetType.BONDS:
+            bond_settings = asset.bond_settings or {}
+            price_at_time = calculate_bond_value(
+                purchase_price=asset.purchase_price,
+                capitalization_of_interest=bond_settings.get(
+                    "capitalizationOfInterest", False),
+                capitalization_frequency=bond_settings.get(
+                    "capitalizationFrequency", None),
+                interestRateResetsFrequency=bond_settings.get(
+                    "interestRateResetsFrequency", 12),
+                purchase_date=asset.purchase_date.isoformat()
+                if asset.purchase_date else None,
+                maturity_date=target_datetime.isoformat(),
+                interest_rates=bond_settings.get("interestRates", None),
+                calculate_maturity_value=True
+            )
+
+            return price_at_time
+
+        else:
+            return asset.purchase_price
 
 
 async def cleanup_old_price_data():
