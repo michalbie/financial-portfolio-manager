@@ -349,8 +349,9 @@ async def get_asset_price_at_datetime(
             price_record = result.scalar_one_or_none()
 
             if not price_record:
-                raise ValueError(
-                    f"No price data found for asset {asset.symbol} on {asset.mic_code} before {target_datetime}")
+                print(
+                    f"⚠️ No price data for {asset.symbol} on {asset.mic_code} before {target_datetime}")
+                return asset.purchase_price
 
             return price_record.close
 

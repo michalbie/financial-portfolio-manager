@@ -17,6 +17,7 @@ import {
 } from "../../api/assets";
 import { DashboardHeader } from "./components/DashboardHeader";
 import { PortfolioSummary } from "./components/PortfolioSummary";
+import { ForecastSection } from "./components/ForecastSection";
 import { AssetTypeSelector, ASSET_TYPES } from "./components/AssetTypeSelector";
 import { AssetCard } from "../../components/assets/AssetCard";
 import { StockDetailsForm } from "../../components/stocks/StockDetailsForm";
@@ -292,7 +293,7 @@ const Dashboard: React.FC = () => {
 				<PortfolioSummary />
 
 				{/* Assets Section */}
-				<Stack gap="lg">
+				<Stack gap="lg" mt={60}>
 					<Group justify="space-between">
 						<div>
 							<Title order={2} style={{ color: "white" }} mb={4}>
@@ -355,6 +356,19 @@ const Dashboard: React.FC = () => {
 								})}
 						</Grid>
 					)}
+				</Stack>
+
+				{/* Forecast Section */}
+				<Stack gap="lg" mt={60} style={{ position: "relative", zIndex: 1 }} py={40}>
+					<div>
+						<Title order={2} style={{ color: "white" }} mb={4}>
+							Portfolio Forecast
+						</Title>
+						<Text size="sm" c="dimmed">
+							Project your portfolio's future growth based on historical performance and customizable parameters
+						</Text>
+					</div>
+					<ForecastSection />
 				</Stack>
 			</Container>
 
