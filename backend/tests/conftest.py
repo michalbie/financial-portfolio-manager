@@ -1,23 +1,23 @@
 """
-Pytest configuration and fixtures
+Pytest configuration and fixtures - FIXED VERSION
 """
-from database.models import User, Role, Permission, UserSetting, Asset, AssetType, CurrencyExchangeRate
-from database.database import Base, get_db
-from datetime import datetime
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import sessionmaker, close_all_sessions
-from sqlalchemy import create_engine, event, text
-import pytest
+from pathlib import Path
 from dotenv import load_dotenv
+import pytest
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.orm import sessionmaker, close_all_sessions
+from fastapi.testclient import TestClient
+from datetime import datetime
+from database.database import Base, get_db
+from database.models import User, Role, Permission, UserSetting, Asset, AssetType, CurrencyExchangeRate
 import sys
 import os
-from pathlib import Path
 
 sys.path.insert(0, os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '..')))
+    os.path.join(os.path.dirname(__file__), '..')))  # noqa
 
-env_path = Path(__file__).parent.parent / '.env.test'
-load_dotenv(dotenv_path=env_path, override=True)
+env_path = Path(__file__).parent.parent / '.env.test'  # noqa
+load_dotenv(dotenv_path=env_path, override=True)  # noqa
 
 
 @pytest.fixture(scope="session")
@@ -182,15 +182,19 @@ def test_user(test_db):
 
 @pytest.fixture(scope="function")
 def auth_headers(test_user):
-    """Create auth headers"""
+    """Create auth headers with correct JWT token"""
     from jose import jwt
+
+    # FIXED: Use the same secret key as the application from environment
+    APP_SECRET_KEY = os.getenv("APP_SECRET_KEY", "change_me")
+    APP_JWT_ALG = os.getenv("APP_JWT_ALG", "HS256")
 
     token = jwt.encode({
         "sub": test_user.email,
         "name": test_user.name,
         "roles": ["user"],
         "permissions": ["read", "write"]
-    }, "change_me", algorithm="HS256")
+    }, APP_SECRET_KEY, algorithm=APP_JWT_ALG)
 
     return {"Authorization": f"Bearer {token}"}
 
