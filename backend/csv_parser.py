@@ -37,7 +37,6 @@ class CSVParser:
         }
         """
 
-        # Truncate if too long (keep first 100 lines + last 20 lines for context)
         lines = csv_content.split('\n')
         if len(lines) > 150:
             csv_sample = '\n'.join(
@@ -107,16 +106,14 @@ class CSVParser:
 
         response_text = message.content[0].text.strip()
 
-        # Remove markdown code blocks if present
         if response_text.startswith("```"):
             lines = response_text.split('\n')
-            # Find first line that's not a code fence
             start_idx = 1
             for i, line in enumerate(lines[1:], 1):
                 if not line.strip().startswith('```') and line.strip():
                     start_idx = i
                     break
-            # Find last line that's not a code fence
+
             end_idx = len(lines) - 1
             for i in range(len(lines) - 1, 0, -1):
                 if not lines[i].strip().startswith('```') and lines[i].strip():

@@ -1,5 +1,3 @@
-# backend/assets/assets.py
-
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional

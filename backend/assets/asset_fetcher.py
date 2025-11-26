@@ -2,8 +2,6 @@
 Background task to fetch stock prices and maintain stock list
 """
 import os
-# from dotenv import load_dotenv
-# load_dotenv()  # noqa
 
 import requests
 import asyncio
@@ -146,19 +144,14 @@ async def update_assets_list():
     provider = TwelveDataProvider()
 
     try:
-        # Fetch assets from API
         assets = await provider.get_assets_list()
 
-        # Async database operations
         async with AsyncSessionLocal() as db:
             try:
-                # Delete existing assets
                 await db.execute(text("DELETE FROM assets_list"))
 
-                # Prepare batch insert
                 valid_assets = []
                 for asset in assets:
-                    # Skip assets without required fields
                     if not asset.get('symbol') or not asset.get('mic_code'):
                         continue
 
@@ -173,7 +166,6 @@ async def update_assets_list():
                         "updated_at": datetime.utcnow()
                     })
 
-                # Batch insert with composite primary key (symbol, mic_code)
                 if valid_assets:
                     await db.execute(
                         text("""

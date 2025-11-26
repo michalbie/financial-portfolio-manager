@@ -1,4 +1,3 @@
-# backend/models.py - CORRECTED VERSION
 from sqlalchemy import JSON, Column, Integer, String, DateTime, ForeignKey, Table, Float, Enum, Date, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.postgresql import ARRAY
