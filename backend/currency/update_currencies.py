@@ -15,6 +15,11 @@ async def update_currencies():
         # Fetch currency exchange rates from API
         exchange_rates = await provider.get_currency_exchange_rates()
 
+        print("EXCHANGE RATES:", exchange_rates)
+        if not exchange_rates or len(exchange_rates) == 0:
+            print("❌ No exchange rates fetched from API.")
+            return
+
         # Async database operations
         async with AsyncSessionLocal() as db:
             try:

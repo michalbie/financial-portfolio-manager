@@ -78,7 +78,7 @@ def get_or_create_user(db: Session, email: str, name: str) -> User:
         settings = UserSetting(
             user_id=user.id,
             currency="USD",
-            salary_month=None,
+            salary_per_month=None,
             primary_saving_asset_id=None,
         )
         db.add(settings)

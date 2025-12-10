@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { Box, Stack, Text, Title, NumberInput, Group, Paper, Button, Checkbox } from "@mantine/core";
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { IconChartLine, IconRefresh } from "@tabler/icons-react";
 import { getMyStatistics } from "../../../api/stats";
 import { useAuth } from "../../../context/AuthContext";
+import type { Asset } from "../../../api/assets";
 
 interface YearlyBreakdown {
 	year: number;
@@ -14,7 +14,9 @@ interface YearlyBreakdown {
 	totalWealth: number;
 }
 
-interface ForecastSectionProps {}
+interface ForecastSectionProps {
+	assets: Asset[];
+}
 
 const CustomYearlyTooltip = ({ active, payload, user }: any) => {
 	if (active && payload && payload.length) {
@@ -48,7 +50,7 @@ const CustomYearlyTooltip = ({ active, payload, user }: any) => {
 	return null;
 };
 
-export const ForecastSection: React.FC<ForecastSectionProps> = () => {
+export const ForecastSection: React.FC<ForecastSectionProps> = ({ assets }) => {
 	const { user } = useAuth();
 	const [portfolioStatistics, setPortfolioStatistics] = useState<any[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -58,8 +60,8 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 	const [annualGrowthRate, setAnnualGrowthRate] = useState<number | string>(0);
 	const [useCalculatedRate, setUseCalculatedRate] = useState(true);
 	const [inflationRate, setInflationRate] = useState(2.5);
-	const [monthlySavings, setMonthlySavings] = useState<number | string>(0);
-	const [annualSalaryIncrease, setAnnualSalaryIncrease] = useState<number | string>(2.5);
+	const [monthlySavings, setMonthlySavings] = useState<number>(0);
+	const [annualSalaryIncrease, setAnnualSalaryIncrease] = useState<number>(2.5);
 
 	useEffect(() => {
 		loadData();
@@ -71,7 +73,7 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 		if (data) {
 			setPortfolioStatistics(data);
 
-			const calculatedMonthlyGrowth = calculateHistoricalMonthlyGrowth(data);
+			const calculatedMonthlyGrowth = calculateHistoricalMonthlyGrowth(assets);
 			// Convert monthly to annual: (1 + monthly)^12 - 1
 			const calculatedAnnualGrowth = (Math.pow(1 + calculatedMonthlyGrowth / 100, 12) - 1) * 100;
 			if (useCalculatedRate) {
@@ -85,85 +87,52 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 		setLoading(false);
 	};
 
-	const calculateHistoricalMonthlyGrowth = (stats: any[]): number => {
-		if (stats.length < 2) return 0;
+	const calculateHistoricalMonthlyGrowth = (assets: Asset[]): number => {
+		if (assets.length === 0) return 0;
 
-		const uniqueDayStats: any[] = [];
-		const seenDates = new Set<string>();
+		let totalInvestedAmount = 0;
+		let totalCurrentValue = 0;
+		let weightedMonthsHeld = 0;
 
-		for (const stat of stats) {
-			const dateKey = new Date(stat.date).toISOString().split("T")[0];
-			if (!seenDates.has(dateKey)) {
-				seenDates.add(dateKey);
-				uniqueDayStats.push(stat);
+		const now = new Date();
+
+		for (const asset of assets) {
+			const quantity = asset.quantity || 1;
+			const purchasePrice = asset.purchase_price;
+			const currentPrice = asset.current_price || purchasePrice;
+
+			const invested = purchasePrice * quantity;
+			const currentValue = currentPrice * quantity;
+
+			totalInvestedAmount += invested;
+			totalCurrentValue += currentValue;
+
+			// Calculate months held for this asset
+			if (asset.purchase_date) {
+				const purchaseDate = new Date(asset.purchase_date);
+				const monthsHeld = (now.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+
+				// Weight by investment amount
+				weightedMonthsHeld += monthsHeld * invested;
 			}
 		}
 
-		if (uniqueDayStats.length < 2) return 0;
+		if (totalInvestedAmount <= 0) return 0;
 
-		const filteredStats: any[] = [uniqueDayStats[0]];
+		// Calculate average months held (weighted by investment amount)
+		const averageMonthsHeld = Math.max(1, weightedMonthsHeld / totalInvestedAmount);
 
-		for (let i = 1; i < uniqueDayStats.length; i++) {
-			const lastDate = new Date(filteredStats[filteredStats.length - 1].date);
-			const currentDate = new Date(uniqueDayStats[i].date);
-			const daysDiff = (currentDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
+		// Calculate total return percentage
+		const totalReturn = ((totalCurrentValue - totalInvestedAmount) / totalInvestedAmount) * 100;
 
-			if (daysDiff >= 7) {
-				filteredStats.push(uniqueDayStats[i]);
-			}
-		}
+		// Calculate average monthly return
+		const monthlyReturn = totalReturn / averageMonthsHeld;
 
-		if (filteredStats.length < 2) {
-			filteredStats.push(uniqueDayStats[uniqueDayStats.length - 1]);
-		}
-
-		const monthlyRates: number[] = [];
-
-		for (let i = 1; i < filteredStats.length; i++) {
-			const prevValue = filteredStats[i - 1].total_portfolio_value;
-			const currentValue = filteredStats[i].total_portfolio_value;
-
-			if (prevValue > 0) {
-				const startDate = new Date(filteredStats[i - 1].date);
-				const endDate = new Date(filteredStats[i].date);
-				const daysDiff = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-				const monthsDiff = Math.max(0.1, daysDiff / 30.44);
-
-				const growthRate = ((currentValue - prevValue) / prevValue) * 100;
-				const monthlyRate = growthRate / monthsDiff;
-
-				if (Math.abs(growthRate) < 50) {
-					monthlyRates.push(monthlyRate);
-				}
-			}
-		}
-
-		if (monthlyRates.length === 0) {
-			const firstValue = filteredStats[0].total_portfolio_value;
-			const lastValue = filteredStats[filteredStats.length - 1].total_portfolio_value;
-			const startDate = new Date(filteredStats[0].date);
-			const endDate = new Date(filteredStats[filteredStats.length - 1].date);
-			const monthsDiff = Math.max(1, (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
-
-			if (firstValue > 0) {
-				const totalGrowthRate = (lastValue - firstValue) / firstValue;
-				const monthlyRate = (totalGrowthRate / monthsDiff) * 100;
-				return parseFloat(Math.max(-10, Math.min(10, monthlyRate)).toFixed(2));
-			}
-			return 0;
-		}
-
-		monthlyRates.sort((a, b) => a - b);
-		const medianRate =
-			monthlyRates.length % 2 === 0
-				? (monthlyRates[monthlyRates.length / 2 - 1] + monthlyRates[monthlyRates.length / 2]) / 2
-				: monthlyRates[Math.floor(monthlyRates.length / 2)];
-
-		const cappedRate = Math.max(-10, Math.min(10, medianRate));
+		// Cap between -10% and 10% per month
+		const cappedRate = Math.max(-10, Math.min(10, monthlyReturn));
 
 		return parseFloat(cappedRate.toFixed(2));
 	};
-
 	// Calculate yearly breakdown with inflation adjustment and salary increases
 	const yearlyBreakdown = useMemo(() => {
 		if (portfolioStatistics.length === 0) return [];
@@ -176,10 +145,9 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 		const annualGrowth = typeof annualGrowthRate === "number" ? annualGrowthRate : parseFloat(annualGrowthRate.toString()) || 0;
 		const monthlyGrowthDecimal = Math.pow(1 + annualGrowth / 100, 1 / 12) - 1;
 
-		const monthlySavingsAmount = typeof monthlySavings === "number" ? monthlySavings : parseFloat(monthlySavings.toString()) || 0;
+		const monthlySavingsAmount = monthlySavings || 0;
 		const monthlyInflation = inflationRate / 12 / 100;
-		const annualSalaryIncreaseRate =
-			typeof annualSalaryIncrease === "number" ? annualSalaryIncrease : parseFloat(annualSalaryIncrease.toString()) || 0;
+		const annualSalaryIncreaseRate = annualSalaryIncrease || 0;
 		const annualSalaryIncreaseDecimal = annualSalaryIncreaseRate / 100;
 
 		// Year 0 (current year) - just current portfolio value, no additions yet
@@ -393,7 +361,7 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 										</Text>
 									</Group>
 									<Text size="xs" c="dimmed" fs="italic" mt="xs">
-										(Future dollar values)
+										(Future money values)
 									</Text>
 								</Stack>
 							</Stack>
@@ -516,8 +484,9 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 								onChange={(e) => {
 									const checked = e.currentTarget.checked;
 									setUseCalculatedRate(checked);
-									if (checked && portfolioStatistics.length > 0) {
-										const monthlyGrowth = calculateHistoricalMonthlyGrowth(portfolioStatistics);
+									if (checked && assets.length > 0) {
+										const monthlyGrowth = calculateHistoricalMonthlyGrowth(assets);
+										console.log(monthlyGrowth);
 										const calculatedAnnual = (Math.pow(1 + monthlyGrowth / 100, 12) - 1) * 100;
 										setAnnualGrowthRate(calculatedAnnual.toFixed(2));
 									}
@@ -552,7 +521,9 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 							label="Annual Salary Increase (%)"
 							description="Expected yearly raise"
 							value={annualSalaryIncrease}
-							onChange={(value) => setAnnualSalaryIncrease(value)}
+							onChange={(value) =>
+								typeof value === "number" ? setAnnualSalaryIncrease(value) : setAnnualSalaryIncrease(parseFloat(value) || 0)
+							}
 							step={0.1}
 							decimalScale={2}
 							styles={{
@@ -571,7 +542,9 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 						label="Monthly Savings"
 						description="Current monthly contributions"
 						value={monthlySavings}
-						onChange={(value) => setMonthlySavings(value)}
+						onChange={(value) =>
+							typeof value === "number" ? setMonthlySavings(value) : setMonthlySavings(parseFloat(value) || 0)
+						}
 						min={0}
 						thousandSeparator=","
 						prefix={user?.user_settings.currency + " "}
@@ -605,9 +578,7 @@ export const ForecastSection: React.FC<ForecastSectionProps> = () => {
 							Yearly Income & Growth Breakdown
 						</Title>
 						<Text size="sm" c="dimmed">
-							All values shown in future dollars. Labor income increases by{" "}
-							{typeof annualSalaryIncrease === "number" ? annualSalaryIncrease : parseFloat(annualSalaryIncrease.toString())}%
-							annually.
+							All values shown in future money values. Labor income increases by {annualSalaryIncrease}% annually.
 						</Text>
 
 						<Box h={500}>

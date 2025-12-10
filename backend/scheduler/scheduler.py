@@ -21,8 +21,11 @@ scheduler = AsyncIOScheduler()
 async def initialize_scheduler():
     """Initialize all scheduled jobs"""
 
+    # Update currency exchange rates daily
+    scheduler.add_job(update_currencies, "interval",
+                      days=1)
+
     # Update asset list weekly (background)
-    # asyncio.create_task(update_crypto_list())
     scheduler.add_job(update_assets_list, "interval", weeks=1)
     scheduler.add_job(update_crypto_list, "interval", weeks=1)
 
@@ -32,9 +35,6 @@ async def initialize_scheduler():
 
     scheduler.add_job(update_portfolio_values, "interval",
                       hours=1)
-
-    scheduler.add_job(update_currencies, "interval",
-                      days=1)
 
     # Fetch hourly prices every hour (during market hours ideally)
     scheduler.add_job(

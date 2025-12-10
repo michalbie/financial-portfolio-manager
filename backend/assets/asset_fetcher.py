@@ -177,8 +177,8 @@ async def update_assets_list():
                 if valid_assets:
                     await db.execute(
                         text("""
-                            INSERT INTO assets_list (symbol, mic_code, exchange, currency, name, country, currency, updated_at)
-                            VALUES (:symbol, :mic_code, :exchange, :currency, :name, :country, :currency, :updated_at)
+                            INSERT INTO assets_list (symbol, mic_code, exchange, name, country, currency, updated_at)
+                            VALUES (:symbol, :mic_code, :exchange, :name, :country, :currency, :updated_at)
                             ON CONFLICT (symbol, mic_code) DO UPDATE SET
                                 exchange = EXCLUDED.exchange,
                                 name = EXCLUDED.name,

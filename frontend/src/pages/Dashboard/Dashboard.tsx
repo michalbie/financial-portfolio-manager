@@ -368,7 +368,7 @@ const Dashboard: React.FC = () => {
 							Project your portfolio's future growth based on historical performance and customizable parameters
 						</Text>
 					</div>
-					<ForecastSection />
+					<ForecastSection assets={assets} />
 				</Stack>
 			</Container>
 
